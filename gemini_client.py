@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 import asyncio
 import time
-
+import os
 from config import Config, TherapyProtocols
 from database import DatabaseManager
 from utils import log_action
@@ -77,10 +77,9 @@ class GeminiTherapyClient:
     
     def __init__(self, db: DatabaseManager):
         # Configure Gemini API
-        if Config.GEMINI_API_KEY == 'your-api-key-here':
-            raise ValueError("Please set your GEMINI_API_KEY environment variable")
+
         
-        genai.configure(api_key=Config.GEMINI_API_KEY)
+        genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
         self.model = genai.GenerativeModel(
             Config.GEMINI_MODEL,
             generation_config=genai.types.GenerationConfig(
