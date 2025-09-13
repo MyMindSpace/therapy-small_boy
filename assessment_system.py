@@ -105,20 +105,58 @@ class AssessmentSystem:
         
         return assessment
     
-    def save_assessment(self, assessment: Assessment) -> int:
-        """Save assessment to database"""
-        assessment_data = assessment.to_dict()
-        assessment_data.pop('id')  # Remove id for insert
+    def get_assessment(self, assessment_type: str) -> Dict[str, Any]:
+        """Get assessment questions and details"""
+        if assessment_type not in self.assessments:
+            return None
         
-        assessment_id = self.db.execute_update(
-            '''INSERT INTO assessments 
-               (patient_id, session_id, assessment_type, questions_responses, 
-                total_score, severity_level, assessment_date, interpretation)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-            tuple(assessment_data.values())
-        )
+        assessment_tool = self.assessments[assessment_type]
         
-        assessment.id = assessment_id
+        return {
+            'name': assessment_tool.name,
+            'description': getattr(assessment_tool, 'description', f'{assessment_type} Assessment'),
+            'instructions': assessment_tool.instructions,
+            'questions': [
+                {
+                    'text': q.text,
+                    'options': q.options,
+                    'scores': q.scores
+                } for q in assessment_tool.questions
+            ]
+        }
+    def calculate_severity(self, assessment_type: str, total_score: int) -> str:
+        """Calculate severity level from total score"""
+        if assessment_type not in self.assessments:
+            return "Unknown"
+        
+        assessment_tool = self.assessments[assessment_type]
+        severity, _ = assessment_tool.interpret_score(total_score)
+        return severity
+
+    def get_interpretation(self, assessment_type: str, total_score: int) -> str:
+        """Get clinical interpretation of score"""
+        if assessment_type not in self.assessments:
+            return "Unable to interpret unknown assessment type"
+        
+        assessment_tool = self.assessments[assessment_type]
+        _, interpretation = assessment_tool.interpret_score(total_score)
+        return interpretation
+
+    def save_assessment(self, patient_id: int, assessment_type: str, responses: Dict, 
+                    total_score: int, severity_level: str, interpretation: str,
+                    session_id: int = None) -> int:
+        """Save assessment results to database"""
+        assessment_id = self.db.execute_update('''
+            INSERT INTO assessments 
+            (patient_id, session_id, assessment_type, questions_responses, 
+            total_score, severity_level, assessment_date, interpretation)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            patient_id, session_id, assessment_type, 
+            json.dumps(responses), total_score, severity_level,
+            datetime.now().isoformat(), interpretation
+        ))
+        
         return assessment_id
     
     def display_results(self, assessment: Assessment, assessment_tool):

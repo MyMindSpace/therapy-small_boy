@@ -207,7 +207,8 @@ class SessionManager:
         if crisis_detected:
             session_state.crisis_detected = True
             session_state.current_phase = SessionPhase.EMERGENCY_INTERVENTION.value
-            return await self._handle_emergency_intervention(session_state, user_input)
+            response = await self._handle_emergency_intervention(session_state, user_input)
+# Continue to normal processing so the response is handled properly
         
         # Create conversation context
         context = ConversationContext(
@@ -686,12 +687,24 @@ Remember, you have your homework assignments to work on, and I'm here if you nee
             'session_ending': True
         }
     
-    async def _handle_emergency_intervention(self, session_state: SessionState, user_input: str) -> Dict[str, Any]:
+    async def _handle_emergency_intervention(self, session_state, user_input, context=None):
         """Handle emergency/crisis intervention"""
         
         # Get crisis response from crisis manager
         crisis_alert = self.crisis_manager.detect_crisis(user_input, session_state.patient_id)
-        crisis_response = self.crisis_manager.get_crisis_response(crisis_alert)
+        # Create a direct crisis response instead of calling get_crisis_response
+        crisis_response = '''🚨 I'm concerned about your safety right now. Let's talk about this together.
+
+        I want you to know that you're not alone, and there are people who want to help you through this difficult time.
+
+        Right now, are you having thoughts of hurting yourself or ending your life?
+
+        If you're in immediate danger, please:
+        - Call 988 (Suicide & Crisis Lifeline)  
+        - Go to your nearest emergency room
+        - Call 100
+
+        We can work through this together. Can you tell me what's happening right now?'''
         
         # Update session to reflect crisis intervention
         self.db.execute_update(
@@ -763,7 +776,7 @@ Remember, you have your homework assignments to work on, and I'm here if you nee
         return {
             'session_id': session_state.session_id,
             'patient_id': patient_id,
-            'session_duration_actual': self._calculate_session_duration(session_state),
+            'session_duration': self._calculate_session_duration(session_state),
             'phases_completed': session_state.phases_completed,
             'interventions_used': session_state.interventions_used,
             'topics_discussed': session_state.topics_discussed,

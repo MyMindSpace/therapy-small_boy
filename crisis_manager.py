@@ -42,6 +42,7 @@ class CrisisAlert:
     id: Optional[int] = None
     patient_id: int = 0
     crisis_type: str = ""
+    crisis_level: str = "low"
     risk_level: str = RiskLevel.LOW.value
     trigger_text: str = ""
     assessment_score: int = 0
@@ -74,13 +75,10 @@ class CrisisManager:
     def __init__(self, db: DatabaseManager):
         self.db = db
         self.active_alerts: Dict[int, CrisisAlert] = {}
-        self._init_crisis_tables()
     
     def _init_crisis_tables(self):
         """Initialize crisis-related database tables"""
-        with self.db.db_path as db_path:
-            import sqlite3
-            conn = sqlite3.connect(db_path)
+        with self.db.get_connection() as conn:
             
             # Crisis alerts table
             conn.execute('''
@@ -184,7 +182,7 @@ class CrisisManager:
             
             return crisis_alert
         
-        return None
+        return False
     
     def _assess_suicide_risk_from_text(self, text: str) -> int:
         """Assess suicide risk from text using keyword scoring"""

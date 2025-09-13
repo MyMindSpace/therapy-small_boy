@@ -138,7 +138,89 @@ class GoalManager:
             ''')
             
             conn.commit()
-    
+    def create_goal(self, patient_id: int, goal_type: str, description: str, 
+               target_date: str, measurement_criteria: str) -> int:
+        """Create a new treatment goal"""
+        
+        goal_id = self.db.execute_update('''
+            INSERT INTO treatment_goals 
+            (patient_id, goal_type, goal_description, target_date, 
+            measurement_criteria, current_progress, status, created_date, last_updated)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            patient_id, goal_type, description, target_date,
+            measurement_criteria, 0, 'active',
+            datetime.now().isoformat(), datetime.now().isoformat()
+        ))
+        
+        return goal_id
+
+    def update_goal_progress(self, goal_id: int, progress: int, notes: str = None) -> bool:
+        """Update goal progress"""
+        update_data = {
+            'current_progress': progress,
+            'last_updated': datetime.now().isoformat()
+        }
+        
+        if notes:
+            # Get existing notes
+            existing = self.db.execute_query("SELECT notes FROM treatment_goals WHERE id = ?", (goal_id,))
+            if existing:
+                old_notes = existing[0].get('notes', '') or ''
+                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
+                new_notes = f"{old_notes}\n[{timestamp}] {notes}".strip()
+                update_data['notes'] = new_notes
+        
+        # Automatically mark as achieved if 100% progress
+        if progress >= 100:
+            update_data['status'] = 'achieved'
+        
+        rows_updated = self.db.execute_update('''
+            UPDATE treatment_goals 
+            SET current_progress = ?, last_updated = ?, notes = ?, status = ?
+            WHERE id = ?
+        ''', (
+            update_data['current_progress'], 
+            update_data['last_updated'],
+            update_data.get('notes'),
+            update_data.get('status', 'active'),
+            goal_id
+        ))
+        
+        return rows_updated > 0
+
+    def get_patient_goals(self, patient_id: int, status: str = None) -> List[Dict]:
+        """Get all goals for a patient"""
+        if status:
+            return self.db.execute_query(
+                "SELECT * FROM treatment_goals WHERE patient_id = ? AND status = ? ORDER BY created_date DESC",
+                (patient_id, status)
+            )
+        else:
+            return self.db.execute_query(
+                "SELECT * FROM treatment_goals WHERE patient_id = ? ORDER BY created_date DESC",
+                (patient_id,)
+            )
+
+    def calculate_goal_progress_summary(self, patient_id: int) -> Dict[str, Any]:
+        """Calculate overall goal progress for a patient"""
+        goals = self.get_patient_goals(patient_id, 'active')
+        
+        if not goals:
+            return {'total_goals': 0, 'avg_progress': 0, 'goals_achieved': 0}
+        
+        total_progress = sum(goal['current_progress'] for goal in goals)
+        avg_progress = total_progress / len(goals)
+        
+        all_goals = self.get_patient_goals(patient_id)
+        achieved_goals = len([g for g in all_goals if g['status'] == 'achieved'])
+        
+        return {
+            'total_goals': len(goals),
+            'avg_progress': round(avg_progress, 1),
+            'goals_achieved': achieved_goals,
+            'active_goals': len(goals)
+        }
     def _load_goal_templates(self) -> Dict[str, Dict[str, Any]]:
         """Load pre-defined goal templates"""
         templates = {
