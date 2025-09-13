@@ -35,7 +35,7 @@ app.add_middleware(
 )
 
 # Configure Gemini
-genai.configure(api_key="AIzaSyBUXZNKkz0jJ8pkIEL18JUsjAMsTdKwnss")  # Replace with your API key
+genai.configure(api_key="")  # Replace with your API key
 
 # Database setup
 DATABASE_PATH = "therapy.db"
