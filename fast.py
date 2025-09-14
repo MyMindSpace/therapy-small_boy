@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -13,6 +13,10 @@ from enum import Enum
 from datetime import datetime, timedelta
 import re
 import logging
+from collections import Counter
+
+# Import recommendation engine
+from recommendations import RecommendationEngine
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -20,22 +24,34 @@ logger = logging.getLogger(__name__)
 
 # Initialize FastAPI
 app = FastAPI(
-    title="Interactive AI Therapist",
-    description="Fully automated AI therapy system where Gemini conducts complete sessions with assessments, goal setting, and homework",
-    version="1.0.0"
+    title="Complete AI Therapist System",
+    description="Comprehensive AI-powered therapy system with sessions, assessments, recommendations, and diagnosis documentation",
+    version="2.0.0"
 )
 
-# Add CORS middleware
+# Add CORS middleware - MUST be before other middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=["*"],  # In production, specify your domain
+    allow_credentials=False,  # Set to False when using allow_origins=["*"]
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
+# Add OPTIONS handler for preflight requests
+@app.options("/{path:path}")
+async def options_handler(path: str):
+    return JSONResponse(
+        content={},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
 # Configure Gemini
-genai.configure(api_key="")  # Replace with your API key
+genai.configure(api_key="YOUR_GEMINI_API_KEY_HERE")  # Replace with your API key
 
 # Database setup
 DATABASE_PATH = "therapy.db"
@@ -61,6 +77,11 @@ def init_database():
         
         try:
             conn.execute("ALTER TABLE homework_assignments ADD COLUMN session_id INTEGER")
+        except sqlite3.OperationalError:
+            pass  # Column already exists or table doesn't exist
+            
+        try:
+            conn.execute("ALTER TABLE interactive_sessions ADD COLUMN recommendation_data TEXT")
         except sqlite3.OperationalError:
             pass  # Column already exists or table doesn't exist
         
@@ -94,6 +115,7 @@ def init_database():
                 session_completed BOOLEAN DEFAULT FALSE,
                 total_exchanges INTEGER DEFAULT 0,
                 crisis_flags TEXT DEFAULT '[]',
+                recommendation_data TEXT,
                 FOREIGN KEY (patient_id) REFERENCES patients(id)
             )
         ''')
@@ -132,6 +154,30 @@ def init_database():
             )
         ''')
         
+        # Diagnosis documentation table
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS diagnosis_documentation (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                patient_id INTEGER NOT NULL,
+                session_id INTEGER,
+                diagnosis_code TEXT,
+                diagnosis_name TEXT NOT NULL,
+                severity TEXT,
+                confidence_level TEXT DEFAULT 'preliminary',
+                supporting_evidence TEXT,
+                differential_diagnoses TEXT DEFAULT '[]',
+                ruling_out TEXT DEFAULT '[]',
+                clinical_notes TEXT,
+                diagnostic_criteria TEXT DEFAULT '{}',
+                created_date TEXT DEFAULT (datetime('now')),
+                updated_date TEXT DEFAULT (datetime('now')),
+                diagnosed_by TEXT DEFAULT 'AI_System',
+                status TEXT DEFAULT 'active',
+                FOREIGN KEY (patient_id) REFERENCES patients(id),
+                FOREIGN KEY (session_id) REFERENCES interactive_sessions(id)
+            )
+        ''')
+        
         conn.commit()
 
 # Initialize database on startup
@@ -156,6 +202,21 @@ class InteractiveSessionStart(BaseModel):
 class ChatMessage(BaseModel):
     message: str
     session_id: int
+
+class DiagnosisCreate(BaseModel):
+    patient_id: int
+    session_id: Optional[int] = None
+    diagnosis_name: str
+    diagnosis_code: Optional[str] = None
+    severity: Optional[str] = None
+    confidence_level: str = "preliminary"
+    supporting_evidence: str
+    clinical_notes: Optional[str] = None
+
+class RecommendationRequest(BaseModel):
+    session_id: int
+    content_count: Optional[int] = 5
+    lifestyle_count: Optional[int] = 6
 
 # AI Therapy System Class
 class InteractiveTherapyAI:
@@ -541,12 +602,13 @@ Questions:
             }
 
 therapy_ai = InteractiveTherapyAI()
+recommendation_engine = RecommendationEngine(therapy_ai.model)
 
 # API Routes
 
 @app.get("/")
 async def root():
-    return {"message": "Interactive AI Therapist API", "version": "1.0.0"}
+    return {"message": "Complete AI Therapist API", "version": "2.0.0"}
 
 @app.post("/patients")
 async def create_patient(patient: PatientCreate):
@@ -792,7 +854,6 @@ Respond with just: [Type] Assignment description"""
             hw_text = hw_response.text.strip()
             
             # Parse homework
-            # Parse homework
             if '[' in hw_text and ']' in hw_text:
                 hw_type = hw_text.split('[')[1].split(']')[0].lower().replace(' ', '_')
                 hw_description = hw_text.split(']')[1].strip()
@@ -909,7 +970,7 @@ async def get_patient_dashboard(patient_id: int):
             (patient_id,)
         ).fetchall()
         
-        # Get latest session details
+        # Latest session details
         latest_session = None
         if sessions:
             latest_session_data = dict(sessions[0])
@@ -998,24 +1059,6 @@ CONVERSATION TRANSCRIPT:
         transcript += f"\n\nSession exported on: {datetime.now().isoformat()}"
         
         return {"transcript": transcript, "session_summary": dict(session)}
-
-@app.post("/sessions/{session_id}/continue")
-async def continue_session(session_id: int):
-    """Continue a completed session or reactivate it"""
-    with get_db() as conn:
-        session = conn.execute("SELECT * FROM interactive_sessions WHERE id = ?", (session_id,)).fetchone()
-        
-        if not session:
-            raise HTTPException(status_code=404, detail="Session not found")
-        
-        # Allow continuation if session is completed
-        conn.execute(
-            "UPDATE interactive_sessions SET session_completed = FALSE, current_phase = ? WHERE id = ?",
-            (SessionPhase.THERAPY.value, session_id)
-        )
-        conn.commit()
-        
-        return {"message": "Session reactivated", "phase": SessionPhase.THERAPY.value}
 
 @app.get("/sessions/{session_id}/insights")
 async def get_session_insights(session_id: int):
@@ -1117,7 +1160,703 @@ async def update_goal_progress(goal_id: int, progress: int):
         
         return {"message": "Goal progress updated", "goal_id": goal_id, "progress": progress}
 
-# WebSocket endpoint for real-time chat (optional enhancement)
+# Recommendation Engine Endpoints
+
+@app.post("/sessions/{session_id}/recommendations")
+async def generate_session_recommendations(session_id: int, request: RecommendationRequest):
+    """Generate comprehensive recommendations based on therapy session"""
+    try:
+        with get_db() as conn:
+            # Get session data with patient info
+            session = conn.execute(
+                """SELECT s.*, p.name as patient_name FROM interactive_sessions s 
+                   JOIN patients p ON s.patient_id = p.id WHERE s.id = ?""",
+                (session_id,)
+            ).fetchone()
+            
+            if not session:
+                raise HTTPException(status_code=404, detail="Session not found")
+            
+            # Get conversation history
+            conversation_history = json.loads(session['conversation_history']) if session['conversation_history'] else []
+            
+            if not conversation_history:
+                raise HTTPException(status_code=400, detail="Session has no conversation history to analyze")
+            
+            # Get patient's goals
+            goals = conn.execute(
+                "SELECT * FROM treatment_goals WHERE patient_id = ? AND status = 'active'",
+                (session['patient_id'],)
+            ).fetchall()
+            goals_list = [dict(goal) for goal in goals]
+            
+            # Get patient's homework
+            homework = conn.execute(
+                "SELECT * FROM homework_assignments WHERE patient_id = ? ORDER BY assigned_date DESC LIMIT 5",
+                (session['patient_id'],)
+            ).fetchall()
+            homework_list = [dict(hw) for hw in homework]
+            
+            # Generate recommendations
+            recommendations = await recommendation_engine.generate_recommendations(
+                conversation_history=conversation_history,
+                goals=goals_list,
+                homework=homework_list,
+                content_count=request.content_count,
+                lifestyle_count=request.lifestyle_count
+            )
+            
+            # Store recommendations in database
+            recommendations_json = json.dumps(recommendations)
+            conn.execute(
+                "UPDATE interactive_sessions SET recommendation_data = ? WHERE id = ?",
+                (recommendations_json, session_id)
+            )
+            conn.commit()
+            
+            return {
+                "session_id": session_id,
+                "patient_name": session['patient_name'],
+                "recommendations": recommendations,
+                "generated_at": recommendations["recommendation_metadata"]["generated_at"]
+            }
+            
+    except Exception as e:
+        logger.error(f"Error generating recommendations: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate recommendations: {str(e)}")
+
+@app.get("/sessions/{session_id}/keywords")
+async def extract_session_keywords(session_id: int):
+    """Extract keywords and therapeutic themes from session conversation"""
+    try:
+        with get_db() as conn:
+            session = conn.execute(
+                "SELECT conversation_history, patient_id FROM interactive_sessions WHERE id = ?",
+                (session_id,)
+            ).fetchone()
+            
+            if not session:
+                raise HTTPException(status_code=404, detail="Session not found")
+            
+            conversation_history = json.loads(session['conversation_history']) if session['conversation_history'] else []
+            
+            if not conversation_history:
+                raise HTTPException(status_code=400, detail="Session has no conversation to analyze")
+            
+            # Extract keywords using the recommendation engine
+            keywords_data = await recommendation_engine.keyword_extractor.extract_keywords_and_themes(conversation_history)
+            
+            return {
+                "session_id": session_id,
+                "analysis": keywords_data,
+                "conversation_length": len(conversation_history),
+                "analyzed_at": datetime.now().isoformat()
+            }
+            
+    except Exception as e:
+        logger.error(f"Error extracting keywords: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to extract keywords: {str(e)}")
+
+# Diagnosis Documentation Endpoints
+
+@app.post("/diagnosis")
+async def create_diagnosis(diagnosis: DiagnosisCreate):
+    """Create a new diagnosis documentation entry"""
+    with get_db() as conn:
+        # Verify patient exists
+        patient = conn.execute("SELECT * FROM patients WHERE id = ?", (diagnosis.patient_id,)).fetchone()
+        if not patient:
+            raise HTTPException(status_code=404, detail="Patient not found")
+        
+        cursor = conn.execute("""
+            INSERT INTO diagnosis_documentation 
+            (patient_id, session_id, diagnosis_code, diagnosis_name, severity, 
+             confidence_level, supporting_evidence, clinical_notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            diagnosis.patient_id,
+            diagnosis.session_id,
+            diagnosis.diagnosis_code,
+            diagnosis.diagnosis_name,
+            diagnosis.severity,
+            diagnosis.confidence_level,
+            diagnosis.supporting_evidence,
+            diagnosis.clinical_notes
+        ))
+        
+        diagnosis_id = cursor.lastrowid
+        conn.commit()
+        
+        # Return created diagnosis
+        created_diagnosis = conn.execute(
+            "SELECT * FROM diagnosis_documentation WHERE id = ?", (diagnosis_id,)
+        ).fetchone()
+        
+        return dict(created_diagnosis)
+
+@app.get("/patients/{patient_id}/diagnoses")
+async def get_patient_diagnoses(patient_id: int):
+    """Get all diagnoses for a patient"""
+    with get_db() as conn:
+        diagnoses = conn.execute(
+            """SELECT d.*, p.name as patient_name 
+               FROM diagnosis_documentation d 
+               JOIN patients p ON d.patient_id = p.id 
+               WHERE d.patient_id = ? 
+               ORDER BY d.created_date DESC""",
+            (patient_id,)
+        ).fetchall()
+        
+        return [dict(row) for row in diagnoses]
+
+@app.get("/sessions/{session_id}/diagnosis")
+async def get_session_diagnosis(session_id: int):
+    """Get diagnosis documentation for a specific session"""
+    with get_db() as conn:
+        diagnoses = conn.execute(
+            """SELECT d.*, p.name as patient_name 
+               FROM diagnosis_documentation d 
+               JOIN patients p ON d.patient_id = p.id 
+               WHERE d.session_id = ? 
+               ORDER BY d.created_date DESC""",
+            (session_id,)
+        ).fetchall()
+        
+        return [dict(row) for row in diagnoses]
+
+@app.post("/sessions/{session_id}/auto-diagnosis")
+async def auto_generate_diagnosis(session_id: int):
+    """Auto-generate diagnosis based on session conversation and assessment results"""
+    try:
+        with get_db() as conn:
+            session = conn.execute(
+                """SELECT s.*, p.name as patient_name FROM interactive_sessions s 
+                   JOIN patients p ON s.patient_id = p.id WHERE s.id = ?""",
+                (session_id,)
+            ).fetchone()
+            
+            if not session:
+                raise HTTPException(status_code=404, detail="Session not found")
+            
+            conversation_history = json.loads(session['conversation_history']) if session['conversation_history'] else []
+            assessment_results = json.loads(session['assessment_results']) if session['assessment_results'] else {}
+            detected_symptoms = json.loads(session['detected_symptoms'])
+            
+            if not conversation_history:
+                raise HTTPException(status_code=400, detail="No conversation history to analyze")
+            
+            # Build context for diagnosis
+            conversation_summary = "\n".join([
+                f"Patient: {msg['user']}\nTherapist: {msg['ai']}" 
+                for msg in conversation_history
+            ])
+            
+            assessment_summary = ""
+            if assessment_results:
+                assessment_summary = "\nAssessment Results:\n"
+                for assessment_type, results in assessment_results.items():
+                    assessment_summary += f"- {assessment_type}: Score {results['total_score']} ({results['severity']})\n"
+            
+            diagnosis_prompt = f"""Based on this therapy session, provide a preliminary clinical diagnosis assessment:
+
+Patient: {session['patient_name']}
+Detected Symptoms: {', '.join(detected_symptoms)}
+
+Conversation Summary:
+{conversation_summary}
+
+{assessment_summary}
+
+Provide a structured diagnostic assessment including:
+1. Primary diagnosis (most likely)
+2. Severity level
+3. Confidence level (preliminary/probable/definitive)
+4. Supporting evidence from the session
+5. Differential diagnoses to consider
+6. Ruling out other conditions
+7. Clinical notes and recommendations
+
+Format as JSON:
+{{
+    "primary_diagnosis": "diagnosis name",
+    "diagnosis_code": "ICD-10 or DSM-5 code if applicable",
+    "severity": "mild/moderate/severe",
+    "confidence_level": "preliminary/probable/definitive",
+    "supporting_evidence": "specific evidence from session",
+    "differential_diagnoses": ["alternative diagnosis 1", "alternative diagnosis 2"],
+    "ruling_out": ["conditions to rule out"],
+    "clinical_notes": "professional clinical observations",
+    "recommendations": "next steps and treatment recommendations"
+}}
+
+Focus on evidence-based diagnostic criteria. Be conservative with confidence levels."""
+            
+            response = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: therapy_ai.model.generate_content(diagnosis_prompt)
+            )
+            
+            # Parse JSON response
+            json_match = re.search(r'\{.*\}', response.text, re.DOTALL)
+            if json_match:
+                diagnosis_data = json.loads(json_match.group())
+                
+                # Create diagnosis documentation entry
+                cursor = conn.execute("""
+                    INSERT INTO diagnosis_documentation 
+                    (patient_id, session_id, diagnosis_code, diagnosis_name, severity, 
+                     confidence_level, supporting_evidence, differential_diagnoses, 
+                     ruling_out, clinical_notes, diagnostic_criteria, diagnosed_by)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    session['patient_id'],
+                    session_id,
+                    diagnosis_data.get('diagnosis_code'),
+                    diagnosis_data.get('primary_diagnosis'),
+                    diagnosis_data.get('severity'),
+                    diagnosis_data.get('confidence_level', 'preliminary'),
+                    diagnosis_data.get('supporting_evidence'),
+                    json.dumps(diagnosis_data.get('differential_diagnoses', [])),
+                    json.dumps(diagnosis_data.get('ruling_out', [])),
+                    diagnosis_data.get('clinical_notes'),
+                    json.dumps(diagnosis_data.get('recommendations', {})),
+                    'AI_System_Auto'
+                ))
+                
+                diagnosis_id = cursor.lastrowid
+                conn.commit()
+                
+                return {
+                    "diagnosis_id": diagnosis_id,
+                    "session_id": session_id,
+                    "auto_generated": True,
+                    "diagnosis_data": diagnosis_data,
+                    "generated_at": datetime.now().isoformat()
+                }
+            
+            else:
+                raise HTTPException(status_code=500, detail="Failed to parse AI diagnosis response")
+                
+    except Exception as e:
+        logger.error(f"Error auto-generating diagnosis: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to auto-generate diagnosis: {str(e)}")
+
+@app.get("/diagnosis/{diagnosis_id}")
+async def get_diagnosis_details(diagnosis_id: int):
+    """Get detailed diagnosis documentation"""
+    with get_db() as conn:
+        diagnosis = conn.execute(
+            """SELECT d.*, p.name as patient_name, s.session_date
+               FROM diagnosis_documentation d 
+               JOIN patients p ON d.patient_id = p.id 
+               LEFT JOIN interactive_sessions s ON d.session_id = s.id
+               WHERE d.id = ?""",
+            (diagnosis_id,)
+        ).fetchone()
+        
+        if not diagnosis:
+            raise HTTPException(status_code=404, detail="Diagnosis not found")
+        
+        diagnosis_data = dict(diagnosis)
+        diagnosis_data['differential_diagnoses'] = json.loads(diagnosis['differential_diagnoses']) if diagnosis['differential_diagnoses'] else []
+        diagnosis_data['ruling_out'] = json.loads(diagnosis['ruling_out']) if diagnosis['ruling_out'] else []
+        diagnosis_data['diagnostic_criteria'] = json.loads(diagnosis['diagnostic_criteria']) if diagnosis['diagnostic_criteria'] else {}
+        
+        return diagnosis_data
+
+@app.put("/diagnosis/{diagnosis_id}")
+async def update_diagnosis(diagnosis_id: int, updates: Dict[str, Any]):
+    """Update diagnosis documentation"""
+    with get_db() as conn:
+        diagnosis = conn.execute("SELECT * FROM diagnosis_documentation WHERE id = ?", (diagnosis_id,)).fetchone()
+        
+        if not diagnosis:
+            raise HTTPException(status_code=404, detail="Diagnosis not found")
+        
+        # Build update query dynamically based on provided fields
+        update_fields = []
+        update_values = []
+        
+        allowed_fields = [
+            'diagnosis_code', 'diagnosis_name', 'severity', 'confidence_level',
+            'supporting_evidence', 'clinical_notes', 'status'
+        ]
+        
+        for field, value in updates.items():
+            if field in allowed_fields:
+                update_fields.append(f"{field} = ?")
+                update_values.append(value)
+        
+        if not update_fields:
+            raise HTTPException(status_code=400, detail="No valid fields to update")
+        
+        # Add updated timestamp
+        update_fields.append("updated_date = ?")
+        update_values.append(datetime.now().isoformat())
+        update_values.append(diagnosis_id)
+        
+        query = f"UPDATE diagnosis_documentation SET {', '.join(update_fields)} WHERE id = ?"
+        conn.execute(query, update_values)
+        conn.commit()
+        
+        # Return updated diagnosis
+        updated_diagnosis = conn.execute(
+            "SELECT * FROM diagnosis_documentation WHERE id = ?", (diagnosis_id,)
+        ).fetchone()
+        
+        return dict(updated_diagnosis)
+
+# Health check and system endpoints
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "version": "2.0.0",
+        "features": [
+            "Interactive AI Therapy Sessions",
+            "Automated Assessment Conducting",
+            "Dynamic Phase Transitions", 
+            "AI-Generated Treatment Plans",
+            "Crisis Detection",
+            "Session Transcripts",
+            "Real-time WebSocket Chat",
+            "Content & Lifestyle Recommendations",
+            "Diagnosis Documentation"
+        ]
+    }
+
+@app.get("/analytics")
+async def get_system_analytics():
+    """Get system-wide analytics"""
+    with get_db() as conn:
+        total_patients = conn.execute("SELECT COUNT(*) as count FROM patients").fetchone()['count']
+        total_sessions = conn.execute("SELECT COUNT(*) as count FROM interactive_sessions").fetchone()['count']
+        completed_sessions = conn.execute("SELECT COUNT(*) as count FROM interactive_sessions WHERE session_completed = TRUE").fetchone()['count']
+        total_diagnoses = conn.execute("SELECT COUNT(*) as count FROM diagnosis_documentation").fetchone()['count']
+        
+        # Most common symptoms
+        all_symptoms = []
+        symptoms_data = conn.execute("SELECT detected_symptoms FROM interactive_sessions WHERE detected_symptoms != '[]'").fetchall()
+        for row in symptoms_data:
+            symptoms = json.loads(row['detected_symptoms']) if row['detected_symptoms'] else []
+            all_symptoms.extend(symptoms)
+        
+        symptom_counts = Counter(all_symptoms)
+        
+        # Average session length
+        avg_exchanges = conn.execute("SELECT AVG(total_exchanges) as avg FROM interactive_sessions WHERE total_exchanges > 0").fetchone()['avg']
+        
+        # Diagnosis distribution
+        diagnosis_counts = conn.execute(
+            "SELECT diagnosis_name, COUNT(*) as count FROM diagnosis_documentation GROUP BY diagnosis_name ORDER BY count DESC"
+        ).fetchall()
+    return {
+            "total_patients": total_patients,
+            "total_sessions": total_sessions,
+            "completed_sessions": completed_sessions,
+            "total_diagnoses": total_diagnoses,
+            "completion_rate": round((completed_sessions / total_sessions * 100), 2) if total_sessions > 0 else 0,
+            "average_session_exchanges": round(avg_exchanges, 1) if avg_exchanges else 0,
+            "common_symptoms": dict(symptom_counts.most_common(5)),
+            "diagnosis_distribution": {row['diagnosis_name']: row['count'] for row in diagnosis_counts[:5]},
+            "system_uptime": datetime.now().isoformat()
+        }
+
+@app.get("/admin/fix-database")
+async def fix_database():
+    """Fix database schema issues"""
+    try:
+        with get_db() as conn:
+            # Add missing columns if they don't exist
+            columns_to_add = [
+                ("treatment_goals", "session_id", "INTEGER"),
+                ("homework_assignments", "session_id", "INTEGER"),
+                ("interactive_sessions", "recommendation_data", "TEXT"),
+                ("patients", "detected_symptoms", "TEXT DEFAULT '[]'")
+            ]
+            
+            for table, column, definition in columns_to_add:
+                try:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+                    conn.commit()
+                except sqlite3.OperationalError as e:
+                    if "duplicate column name" not in str(e).lower():
+                        logger.warning(f"Failed to add column {column} to {table}: {e}")
+                        
+        return {"message": "Database schema fixed"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fix database: {e}")
+
+# Additional Recommendation Engine Endpoints
+
+@app.post("/sessions/{session_id}/content-recommendations")
+async def generate_content_recommendations_only(session_id: int, count: Optional[int] = 5):
+    """Generate only content recommendations (YouTube, articles, podcasts)"""
+    try:
+        with get_db() as conn:
+            session = conn.execute(
+                "SELECT conversation_history FROM interactive_sessions WHERE id = ?",
+                (session_id,)
+            ).fetchone()
+            
+            if not session:
+                raise HTTPException(status_code=404, detail="Session not found")
+            
+            conversation_history = json.loads(session['conversation_history']) if session['conversation_history'] else []
+            
+            if not conversation_history:
+                raise HTTPException(status_code=400, detail="No conversation to analyze")
+            
+            # Extract keywords first
+            keywords_data = await recommendation_engine.keyword_extractor.extract_keywords_and_themes(conversation_history)
+            
+            # Generate content recommendations
+            content_recommendations = await recommendation_engine.content_generator.generate_content_recommendations(
+                keywords_data, count
+            )
+            
+            return {
+                "session_id": session_id,
+                "content_recommendations": [
+                    {
+                        "title": rec.title,
+                        "description": rec.description,
+                        "content_type": rec.content_type,
+                        "search_query": rec.search_query,
+                        "relevance_reason": rec.relevance_reason,
+                        "estimated_duration": rec.estimated_duration
+                    } for rec in content_recommendations
+                ],
+                "session_themes": keywords_data.get('therapeutic_themes', []),
+                "primary_symptoms": keywords_data.get('primary_symptoms', [])
+            }
+            
+    except Exception as e:
+        logger.error(f"Error generating content recommendations: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate content recommendations: {str(e)}")
+
+@app.post("/sessions/{session_id}/lifestyle-recommendations")
+async def generate_lifestyle_recommendations_only(session_id: int, count: Optional[int] = 6):
+    """Generate only lifestyle recommendations based on goals and homework"""
+    try:
+        with get_db() as conn:
+            # Get session and patient data
+            session = conn.execute(
+                "SELECT conversation_history, patient_id FROM interactive_sessions WHERE id = ?",
+                (session_id,)
+            ).fetchone()
+            
+            if not session:
+                raise HTTPException(status_code=404, detail="Session not found")
+            
+            conversation_history = json.loads(session['conversation_history']) if session['conversation_history'] else []
+            
+            # Get goals and homework
+            goals = conn.execute(
+                "SELECT * FROM treatment_goals WHERE patient_id = ? AND status = 'active'",
+                (session['patient_id'],)
+            ).fetchall()
+            goals_list = [dict(goal) for goal in goals]
+            
+            homework = conn.execute(
+                "SELECT * FROM homework_assignments WHERE patient_id = ? ORDER BY assigned_date DESC LIMIT 5",
+                (session['patient_id'],)
+            ).fetchall()
+            homework_list = [dict(hw) for hw in homework]
+            
+            # Extract keywords first
+            keywords_data = await recommendation_engine.keyword_extractor.extract_keywords_and_themes(conversation_history)
+            
+            # Generate lifestyle recommendations
+            lifestyle_recommendations = await recommendation_engine.lifestyle_generator.generate_lifestyle_recommendations(
+                keywords_data, goals_list, homework_list, count
+            )
+            
+            return {
+                "session_id": session_id,
+                "lifestyle_recommendations": [
+                    {
+                        "title": rec.title,
+                        "description": rec.description,
+                        "activity_type": rec.activity_type,
+                        "instructions": rec.instructions,
+                        "frequency": rec.frequency,
+                        "duration": rec.duration,
+                        "difficulty_level": rec.difficulty_level,
+                        "relates_to_goal": rec.relates_to_goal,
+                        "relates_to_homework": rec.relates_to_homework
+                    } for rec in lifestyle_recommendations
+                ],
+                "active_goals": len(goals_list),
+                "recent_homework": len(homework_list),
+                "motivation_level": keywords_data.get('motivation_level', 'medium')
+            }
+            
+    except Exception as e:
+        logger.error(f"Error generating lifestyle recommendations: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate lifestyle recommendations: {str(e)}")
+
+@app.get("/patients/{patient_id}/recommendations-summary")
+async def get_patient_recommendations_summary(patient_id: int):
+    """Get a summary of all recommendations generated for a patient"""
+    try:
+        with get_db() as conn:
+            # Verify patient exists
+            patient = conn.execute("SELECT name FROM patients WHERE id = ?", (patient_id,)).fetchone()
+            if not patient:
+                raise HTTPException(status_code=404, detail="Patient not found")
+            
+            # Get all sessions with recommendation data
+            sessions_with_recs = conn.execute(
+                """SELECT id, session_date, recommendation_data, current_phase 
+                   FROM interactive_sessions 
+                   WHERE patient_id = ? AND recommendation_data IS NOT NULL
+                   ORDER BY session_date DESC""",
+                (patient_id,)
+            ).fetchall()
+            
+            summary = {
+                "patient_id": patient_id,
+                "patient_name": patient['name'],
+                "total_sessions_with_recommendations": len(sessions_with_recs),
+                "sessions": []
+            }
+            
+            content_types = {}
+            activity_types = {}
+            common_themes = []
+            
+            for session in sessions_with_recs:
+                try:
+                    rec_data = json.loads(session['recommendation_data'])
+                    
+                    # Count content types
+                    for content_rec in rec_data.get('content_recommendations', []):
+                        content_type = content_rec.get('content_type', 'unknown')
+                        content_types[content_type] = content_types.get(content_type, 0) + 1
+                    
+                    # Count activity types
+                    for lifestyle_rec in rec_data.get('lifestyle_recommendations', []):
+                        activity_type = lifestyle_rec.get('activity_type', 'unknown')
+                        activity_types[activity_type] = activity_types.get(activity_type, 0) + 1
+                    
+                    # Collect themes
+                    session_themes = rec_data.get('recommendation_metadata', {}).get('session_themes', [])
+                    common_themes.extend(session_themes)
+                    
+                    summary['sessions'].append({
+                        "session_id": session['id'],
+                        "session_date": session['session_date'],
+                        "phase": session['current_phase'],
+                        "content_count": len(rec_data.get('content_recommendations', [])),
+                        "lifestyle_count": len(rec_data.get('lifestyle_recommendations', [])),
+                        "primary_focus": rec_data.get('recommendation_metadata', {}).get('primary_focus', [])
+                    })
+                    
+                except json.JSONDecodeError:
+                    continue
+            
+            # Calculate theme frequency
+            theme_counts = Counter(common_themes)
+            
+            summary.update({
+                "content_type_distribution": content_types,
+                "activity_type_distribution": activity_types,
+                "most_common_themes": dict(theme_counts.most_common(5)),
+                "generated_at": datetime.now().isoformat()
+            })
+            
+            return summary
+            
+    except Exception as e:
+        logger.error(f"Error getting recommendations summary: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get recommendations summary: {str(e)}")
+
+@app.get("/recommendations/analytics")
+async def get_recommendation_analytics():
+    """Get system-wide analytics about recommendations"""
+    try:
+        with get_db() as conn:
+            # Get all sessions with recommendations
+            sessions_with_recs = conn.execute(
+                """SELECT recommendation_data, session_date, current_phase 
+                   FROM interactive_sessions 
+                   WHERE recommendation_data IS NOT NULL"""
+            ).fetchall()
+            
+            if not sessions_with_recs:
+                return {
+                    "message": "No recommendation data available yet",
+                    "total_sessions": 0
+                }
+            
+            content_types = {}
+            activity_types = {}
+            all_themes = []
+            primary_symptoms = {}
+            motivation_levels = {}
+            
+            for session in sessions_with_recs:
+                try:
+                    rec_data = json.loads(session['recommendation_data'])
+                    
+                    # Analyze content recommendations
+                    for content_rec in rec_data.get('content_recommendations', []):
+                        content_type = content_rec.get('content_type', 'unknown')
+                        content_types[content_type] = content_types.get(content_type, 0) + 1
+                    
+                    # Analyze lifestyle recommendations
+                    for lifestyle_rec in rec_data.get('lifestyle_recommendations', []):
+                        activity_type = lifestyle_rec.get('activity_type', 'unknown')
+                        activity_types[activity_type] = activity_types.get(activity_type, 0) + 1
+                    
+                    # Collect metadata
+                    metadata = rec_data.get('recommendation_metadata', {})
+                    
+                    # Themes
+                    themes = metadata.get('session_themes', [])
+                    all_themes.extend(themes)
+                    
+                    # Primary symptoms
+                    symptoms = metadata.get('primary_focus', [])
+                    for symptom in symptoms:
+                        primary_symptoms[symptom] = primary_symptoms.get(symptom, 0) + 1
+                    
+                    # Motivation levels
+                    motivation = metadata.get('motivation_level', 'unknown')
+                    motivation_levels[motivation] = motivation_levels.get(motivation, 0) + 1
+                    
+                except json.JSONDecodeError:
+                    continue
+            
+            # Calculate theme frequency
+            theme_counts = Counter(all_themes)
+            
+            return {
+                "analytics_summary": {
+                    "total_sessions_analyzed": len(sessions_with_recs),
+                    "content_type_distribution": dict(sorted(content_types.items(), key=lambda x: x[1], reverse=True)),
+                    "activity_type_distribution": dict(sorted(activity_types.items(), key=lambda x: x[1], reverse=True)),
+                    "most_common_themes": dict(theme_counts.most_common(10)),
+                    "primary_symptoms_addressed": dict(sorted(primary_symptoms.items(), key=lambda x: x[1], reverse=True)),
+                    "motivation_level_distribution": motivation_levels
+                },
+                "insights": {
+                    "most_recommended_content": max(content_types.items(), key=lambda x: x[1])[0] if content_types else None,
+                    "most_recommended_activity": max(activity_types.items(), key=lambda x: x[1])[0] if activity_types else None,
+                    "top_therapeutic_theme": theme_counts.most_common(1)[0][0] if theme_counts else None,
+                    "most_common_symptom": max(primary_symptoms.items(), key=lambda x: x[1])[0] if primary_symptoms else None
+                },
+                "generated_at": datetime.now().isoformat()
+            }
+            
+    except Exception as e:
+        logger.error(f"Error generating recommendation analytics: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate analytics: {str(e)}")
+
+# WebSocket endpoint for real-time chat
 @app.websocket("/ws/{session_id}")
 async def websocket_chat(websocket: WebSocket, session_id: int):
     """WebSocket endpoint for real-time therapy chat"""
@@ -1203,71 +1942,155 @@ async def websocket_chat(websocket: WebSocket, session_id: int):
         logger.error(f"WebSocket error: {e}")
         await websocket.send_text(json.dumps({"error": str(e)}))
 
-# Health check endpoint
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return {
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
-        "version": "1.0.0",
-        "features": [
-            "Interactive AI Therapy Sessions",
-            "Automated Assessment Conducting",
-            "Dynamic Phase Transitions", 
-            "AI-Generated Treatment Plans",
-            "Crisis Detection",
-            "Session Transcripts",
-            "Real-time WebSocket Chat"
+# Test endpoints
+@app.post("/test/recommendations")
+async def test_recommendations():
+    """Test endpoint for recommendation engine"""
+    try:
+        # Sample conversation for testing
+        sample_conversation = [
+            {
+                "user": "I've been feeling really anxious about work lately",
+                "ai": "I hear that work has been causing you anxiety. Can you tell me more?",
+                "phase": "intake"
+            },
+            {
+                "user": "My boss keeps giving me impossible deadlines and I can't sleep",
+                "ai": "That sounds very stressful. Sleep problems often go with work anxiety.",
+                "phase": "assessment"
+            },
+            {
+                "user": "I worry about everything and it's affecting my relationships",
+                "ai": "It sounds like the anxiety is spreading to other areas of your life. Let's explore some coping strategies.",
+                "phase": "therapy"
+            }
         ]
-    }
-
-# Analytics endpoint
-@app.get("/analytics")
-async def get_system_analytics():
-    """Get system-wide analytics"""
-    with get_db() as conn:
-        total_patients = conn.execute("SELECT COUNT(*) as count FROM patients").fetchone()['count']
-        total_sessions = conn.execute("SELECT COUNT(*) as count FROM interactive_sessions").fetchone()['count']
-        completed_sessions = conn.execute("SELECT COUNT(*) as count FROM interactive_sessions WHERE session_completed = TRUE").fetchone()['count']
         
-        # Most common symptoms
-        all_symptoms = []
-        symptoms_data = conn.execute("SELECT detected_symptoms FROM interactive_sessions WHERE detected_symptoms != '[]'").fetchall()
-        for row in symptoms_data:
-            symptoms = json.loads(row['symptoms']) if row['detected_symptoms'] else []
-            all_symptoms.extend(symptoms)
+        # Sample goals
+        sample_goals = [
+            {
+                "goal_type": "symptom",
+                "goal_description": "Reduce work-related anxiety from severe to moderate within 8 weeks",
+                "status": "active"
+            },
+            {
+                "goal_type": "behavioral", 
+                "goal_description": "Establish healthy work boundaries and improve sleep routine",
+                "status": "active"
+            }
+        ]
         
-        symptom_counts = {}
-        for symptom in all_symptoms:
-            symptom_counts[symptom] = symptom_counts.get(symptom, 0) + 1
+        # Sample homework
+        sample_homework = [
+            {
+                "assignment_type": "thought_record",
+                "description": "Track anxious thoughts about work daily using thought record worksheet"
+            },
+            {
+                "assignment_type": "sleep_hygiene",
+                "description": "Implement evening routine to improve sleep quality"
+            }
+        ]
         
-        # Average session length
-        avg_exchanges = conn.execute("SELECT AVG(total_exchanges) as avg FROM interactive_sessions WHERE total_exchanges > 0").fetchone()['avg']
+        # Generate test recommendations
+        recommendations = await recommendation_engine.generate_recommendations(
+            conversation_history=sample_conversation,
+            goals=sample_goals,
+            homework=sample_homework,
+            content_count=5,
+            lifestyle_count=6
+        )
         
         return {
-            "total_patients": total_patients,
-            "total_sessions": total_sessions,
-            "completed_sessions": completed_sessions,
-            "completion_rate": round((completed_sessions / total_sessions * 100), 2) if total_sessions > 0 else 0,
-            "average_session_exchanges": round(avg_exchanges, 1) if avg_exchanges else 0,
-            "common_symptoms": dict(sorted(symptom_counts.items(), key=lambda x: x[1], reverse=True)[:5]),
-            "system_uptime": datetime.now().isoformat()
+            "test_status": "success",
+            "sample_data": {
+                "conversation_exchanges": len(sample_conversation),
+                "goals_count": len(sample_goals),
+                "homework_count": len(sample_homework)
+            },
+            "recommendations": recommendations,
+            "note": "This is test data for demonstration purposes"
         }
+        
+    except Exception as e:
+        logger.error(f"Test recommendations error: {e}")
+        raise HTTPException(status_code=500, detail=f"Test failed: {str(e)}")
+
+# Export/Import functionality
+@app.get("/sessions/{session_id}/recommendations/export")
+async def export_session_recommendations(session_id: int):
+    """Export session recommendations in structured format"""
+    try:
+        with get_db() as conn:
+            session = conn.execute(
+                """SELECT s.*, p.name as patient_name 
+                   FROM interactive_sessions s 
+                   JOIN patients p ON s.patient_id = p.id 
+                   WHERE s.id = ?""",
+                (session_id,)
+            ).fetchone()
+            
+            if not session:
+                raise HTTPException(status_code=404, detail="Session not found")
+            
+            if not session['recommendation_data']:
+                raise HTTPException(status_code=404, detail="No recommendations found for this session")
+            
+            recommendations = json.loads(session['recommendation_data'])
+            
+            # Format for export
+            export_data = {
+                "patient_info": {
+                    "name": session['patient_name'],
+                    "session_date": session['session_date'],
+                    "session_id": session_id
+                },
+                "session_analysis": recommendations.get('session_analysis', {}),
+                "content_recommendations": {
+                    "total_count": len(recommendations.get('content_recommendations', [])),
+                    "recommendations": recommendations.get('content_recommendations', [])
+                },
+                "lifestyle_recommendations": {
+                    "total_count": len(recommendations.get('lifestyle_recommendations', [])), 
+                    "recommendations": recommendations.get('lifestyle_recommendations', [])
+                },
+                "metadata": recommendations.get('recommendation_metadata', {}),
+                "export_info": {
+                    "exported_at": datetime.now().isoformat(),
+                    "format_version": "1.0"
+                }
+            }
+            
+            return export_data
+            
+    except Exception as e:
+        logger.error(f"Export recommendations error: {e}")
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
+
+# System events
+@app.on_event("startup")
+async def startup_event():
+    """Initialize system on startup"""
+    init_database()
+    logger.info("Complete AI Therapist System initialized")
+    logger.info("Features: Sessions, Assessments, Goals, Homework, Recommendations, Diagnosis")
 
 if __name__ == "__main__":
     import uvicorn
-    print("🧠 Interactive AI Therapist System Starting...")
+    print("🧠 Complete AI Therapist System Starting...")
     print("Features:")
     print("- Fully automated AI therapy sessions")
     print("- Dynamic conversation phases (Intake → Assessment → Therapy → Goals → Homework)")
     print("- Automatic symptom detection and assessment")
     print("- AI-generated treatment plans and homework")
+    print("- Content & lifestyle recommendations")
+    print("- Diagnosis documentation")
     print("- Crisis detection and safety monitoring")
     print("- Session transcripts and insights")
     print("- Real-time WebSocket support")
+    print("- Comprehensive analytics")
     print("\n📖 Set your GEMINI_API_KEY in the code before starting!")
     print("🚀 Starting server on http://localhost:8000")
     print("📊 API Docs: http://localhost:8000/docs")
     
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)    
