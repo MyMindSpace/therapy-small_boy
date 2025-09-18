@@ -6,6 +6,7 @@ from typing import Optional, List, Dict, Any
 import asyncio
 import json
 import sqlite3
+import os
 import uuid
 from contextlib import contextmanager
 import google.generativeai as genai
@@ -14,9 +15,14 @@ from datetime import datetime, timedelta
 import re
 import logging
 from collections import Counter
-
+import websockets
 # Import recommendation engine
 from recommendations import RecommendationEngine
+from config import Config
+from dotenv import load_dotenv
+load_dotenv()
+
+TTS_WS_URL = Config.TTS_WS_URL
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -51,7 +57,7 @@ async def options_handler(path: str):
     )
 
 # Configure Gemini
-genai.configure(api_key="YOUR_GEMINI_API_KEY_HERE")  # Replace with your API key
+genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
 
 # Database setup
 DATABASE_PATH = "therapy.db"
@@ -201,7 +207,6 @@ class InteractiveSessionStart(BaseModel):
 
 class ChatMessage(BaseModel):
     message: str
-    session_id: int
 
 class DiagnosisCreate(BaseModel):
     patient_id: int
@@ -674,15 +679,15 @@ Keep your greeting under 100 words."""
             "phase": SessionPhase.INTAKE.value
         }
 
-@app.post("/sessions/chat")
-async def chat_in_session(chat_data: ChatMessage):
+@app.post("/sessions/{session_id}/chat")
+async def chat_in_session(session_id: int, chat_data: ChatMessage):
     """Continue conversation in interactive session"""
     with get_db() as conn:
         # Get session data
         session = conn.execute(
             """SELECT s.*, p.name as patient_name FROM interactive_sessions s 
                JOIN patients p ON s.patient_id = p.id WHERE s.id = ?""",
-            (chat_data.session_id,)
+            (session_id,)
         ).fetchone()
         
         if not session:
@@ -728,11 +733,11 @@ async def chat_in_session(chat_data: ChatMessage):
                 assessment_results = await therapy_ai.conduct_automated_assessment(dict(session))
                 conn.execute(
                     "UPDATE interactive_sessions SET assessment_results = ? WHERE id = ?",
-                    (json.dumps(assessment_results), chat_data.session_id)
+                    (json.dumps(assessment_results), session_id)
                 )
             elif new_phase == SessionPhase.HOMEWORK_ASSIGNMENT.value:
                 # Auto-generate goals and homework
-                await auto_generate_treatment_plan(chat_data.session_id, dict(session))
+                await auto_generate_treatment_plan(session_id, dict(session))
         
         # Update session
         session_completed = (new_phase == SessionPhase.COMPLETED.value)
@@ -751,7 +756,7 @@ async def chat_in_session(chat_data: ChatMessage):
                 len(conversation_history),
                 session_completed,
                 json.dumps(['crisis_detected'] if ai_result['crisis_detected'] else []),
-                chat_data.session_id
+                session_id
             )
         )
         conn.commit()
@@ -892,6 +897,30 @@ Respond with just: [Type] Assignment description"""
             
     except Exception as e:
         logger.error(f"Error generating treatment plan: {e}")
+
+@app.post("/sessions/{session_id}/end")
+async def end_session(session_id: int):
+    """Manually end a therapy session"""
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE interactive_sessions SET session_completed = TRUE, current_phase = 'completed' WHERE id = ?",
+            (session_id,)
+        )
+        conn.commit()
+    return {"message": "Session ended", "session_id": session_id}
+
+@app.get("/sessions/active")
+async def get_active_session():
+    """Get the most recent active session"""
+    with get_db() as conn:
+        session = conn.execute(
+            """SELECT s.*, p.name as patient_name FROM interactive_sessions s 
+               JOIN patients p ON s.patient_id = p.id 
+               WHERE s.session_completed = FALSE 
+               ORDER BY s.session_date DESC LIMIT 1"""
+        ).fetchone()
+        
+        return dict(session) if session else None
 
 @app.get("/sessions/{session_id}")
 async def get_session_details(session_id: int):
@@ -1122,6 +1151,28 @@ Keep analysis professional and concise."""
             "ai_insights": ai_insights,
             "session_insights": json.loads(session['session_insights']) if session['session_insights'] else []
         }
+
+@app.post("/homework/create")
+async def create_homework(homework_data: dict):
+    """Create a new homework assignment"""
+    with get_db() as conn:
+        cursor = conn.execute('''
+            INSERT INTO homework_assignments 
+            (patient_id, assignment_type, description, instructions, assigned_date, due_date)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (
+            homework_data['patient_id'],
+            homework_data['assignment_type'],
+            homework_data['description'],
+            homework_data['instructions'],
+            datetime.now().isoformat(),
+            homework_data['due_date']
+        ))
+        
+        homework_id = cursor.lastrowid
+        conn.commit()
+        
+        return {"message": "Homework assignment created", "homework_id": homework_id}
 
 @app.post("/homework/{homework_id}/complete")
 async def complete_homework(homework_id: int, completion_data: dict):
@@ -1889,6 +1940,81 @@ async def websocket_chat(websocket: WebSocket, session_id: int):
                 # Get AI response
                 ai_result = await therapy_ai.get_ai_response(dict(session), user_message)
                 
+                ai_text = ai_result['response']
+                await websocket.send_json({
+                    "type": "ai_text",
+                    "data": ai_text
+                })
+
+                # Step 2: Connect to TTS WebSocket as a client and request audio
+                if not Config.TTS_ENABLED:
+                    logger.info("TTS is disabled in configuration, skipping audio generation")
+                    await websocket.send_json({
+                        "type": "generation_complete",
+                        "data": "TTS disabled - text only mode"
+                    })
+                else:
+                    try:
+                        logger.info(f"Connecting to TTS server at {TTS_WS_URL}")
+                        async with websockets.connect(TTS_WS_URL) as tts_ws:
+                            logger.info("Connected to TTS server successfully")
+                            # Send text input to TTS (matches TTS protocol)
+                            tts_request = {
+                                "type": "text_input",
+                                "data": {
+                                    "text": ai_text,
+                                    "voice": Config.TTS_DEFAULT_VOICE
+                                }
+                            }
+                            await tts_ws.send(json.dumps(tts_request))
+                            logger.info(f"Sent TTS request for text: {ai_text[:50]}...")
+
+                            # Receive and forward audio chunks in real-time
+                            chunk_count = 0
+                            while True:
+                                response = await tts_ws.recv()
+                                data = json.loads(response)
+                                
+                                if data["type"] == "audio_chunk":
+                                    chunk_count += 1
+                                    logger.info(f"Received audio chunk {chunk_count} from TTS")
+                                    
+                                    # Forward audio chunk directly to frontend
+                                    await websocket.send_json({
+                                        "type": "audio_chunk",
+                                        "data": {
+                                            "audio_data": data["data"]["audio_data"],
+                                            "chunk_id": data["data"]["chunk_id"],
+                                            "total_chunks": data["data"]["total_chunks"],
+                                            "is_final": data["data"]["is_final"]
+                                        }
+                                    })
+                                    
+                                    if data["data"]["is_final"]:
+                                        logger.info(f"TTS generation completed with {chunk_count} chunks")
+                                        # Send generation_complete message to frontend
+                                        await websocket.send_json({
+                                            "type": "generation_complete",
+                                            "data": "TTS generation completed successfully"
+                                        })
+                                        break  # Done with this response
+                                
+                                elif data["type"] == "error":
+                                    # Handle TTS errors (e.g., log and fallback to text-only)
+                                    logger.error(f"TTS Error: {data['data']['message']}")
+                                    await websocket.send_json({
+                                        "type": "error",
+                                        "data": "Audio generation failed—using text only."
+                                    })
+                                    break
+
+                    except Exception as e:
+                        logger.error(f"TTS Connection Error: {str(e)}")
+                        await websocket.send_json({
+                            "type": "error",
+                            "data": "Failed to generate audio—using text only."
+                        })
+
                 # Update session (similar to regular chat endpoint)
                 conversation_history = json.loads(session['conversation_history'])
                 conversation_history.append({
@@ -1904,20 +2030,31 @@ async def websocket_chat(websocket: WebSocket, session_id: int):
                     if symptom not in detected_symptoms:
                         detected_symptoms.append(symptom)
                 
+                # Update session insights
+                session_insights = json.loads(session['session_insights'])
+                session_insights.append({
+                    'timestamp': datetime.now().isoformat(),
+                    'insights': ai_result['insights'],
+                    'phase': session['current_phase']
+                })
+                
                 new_phase = ai_result['new_phase']
                 session_completed = (new_phase == SessionPhase.COMPLETED.value)
                 
                 conn.execute(
                     """UPDATE interactive_sessions SET 
                        current_phase = ?, conversation_history = ?, detected_symptoms = ?, 
-                       total_exchanges = ?, session_completed = ?
+                       session_insights = ?, total_exchanges = ?, session_completed = ?,
+                       crisis_flags = ?
                        WHERE id = ?""",
                     (
                         new_phase,
                         json.dumps(conversation_history),
                         json.dumps(detected_symptoms),
+                        json.dumps(session_insights),
                         len(conversation_history),
                         session_completed,
+                        json.dumps(['crisis_detected'] if ai_result['crisis_detected'] else []),
                         session_id
                     )
                 )

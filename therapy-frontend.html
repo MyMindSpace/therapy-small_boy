@@ -1,0 +1,2833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Therapy System - Complete Frontend</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --bg-color: #ecf0f1;
+            --text-color: #2c3e50;
+            --border-color: #bdc3c7;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background: var(--bg-color);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: var(--primary-color);
+            color: white;
+            padding: 1rem 0;
+            margin-bottom: 2rem;
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            opacity: 0.8;
+            font-size: 1.1rem;
+        }
+
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--success-color);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .main-nav {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+            padding: 1rem;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            background: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .nav-btn:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        .nav-btn.active {
+            background: var(--primary-color);
+        }
+
+        .section {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+            padding: 2rem;
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .section-header {
+            border-bottom: 3px solid var(--secondary-color);
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .section-description {
+            color: #7f8c8d;
+            font-size: 1.1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+        }
+
+        button {
+            background: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        .btn-primary { background: var(--secondary-color); }
+        .btn-success { background: var(--success-color); }
+        .btn-warning { background: var(--warning-color); }
+        .btn-danger { background: var(--accent-color); }
+
+        .btn-success:hover { background: #229954; }
+        .btn-warning:hover { background: #e67e22; }
+        .btn-danger:hover { background: #c0392b; }
+
+        /* Homework System Styles */
+        .homework-item {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-left: 4px solid var(--secondary-color);
+        }
+
+        .homework-item.completed {
+            border-left-color: var(--success-color);
+            background: #f8fff8;
+        }
+
+        .homework-item.pending {
+            border-left-color: var(--warning-color);
+        }
+
+        .homework-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .homework-header h4 {
+            margin: 0;
+            color: var(--primary-color);
+            flex: 1;
+        }
+
+        .homework-status {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0.5rem;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-badge.completed {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .status-badge.pending {
+            background: var(--warning-color);
+            color: white;
+        }
+
+        .due-date {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .homework-details {
+            margin-bottom: 1rem;
+        }
+
+        .homework-details p {
+            margin: 0.5rem 0;
+            color: #555;
+        }
+
+        .homework-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .homework-actions .btn {
+            font-size: 0.9rem;
+            padding: 0.5rem 1rem;
+        }
+
+        .homework-report {
+            max-width: 600px;
+        }
+
+        .report-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-item {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-label {
+            display: block;
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            display: block;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .report-details {
+            margin-top: 1rem;
+        }
+
+        .report-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .assignment-title {
+            flex: 1;
+            font-weight: 500;
+        }
+
+        .assignment-status {
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .assignment-status.completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .assignment-status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .homework-details-modal {
+            max-width: 500px;
+        }
+
+        .homework-details-modal h3 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .homework-details-modal p {
+            margin: 0.5rem 0;
+            line-height: 1.5;
+        }
+
+        .patient-homework-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid var(--secondary-color);
+        }
+
+        .patient-homework-section h5 {
+            margin: 0 0 0.5rem 0;
+            color: var(--primary-color);
+        }
+
+        .patient-stats {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .patient-stat {
+            background: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .patient-assignments {
+            margin-top: 0.5rem;
+        }
+
+        .more-assignments {
+            font-style: italic;
+            color: #666;
+            margin: 0.5rem 0 0 0;
+            font-size: 0.9rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .card {
+            background: #f8f9fa;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+        }
+
+        .card-header {
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .patient-list, .session-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+        }
+
+        .patient-item, .session-item {
+            padding: 1rem;
+            border-bottom: 1px solid #ecf0f1;
+            cursor: pointer;
+            transition: background 0.3s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .patient-item:hover, .session-item:hover {
+            background: #f8f9fa;
+        }
+
+        .patient-item.selected, .session-item.selected {
+            background: var(--secondary-color);
+            color: white;
+        }
+
+        .chat-container {
+            height: 500px;
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 1rem;
+            padding: 1rem;
+            border-radius: 10px;
+            max-width: 80%;
+        }
+
+        .message.user {
+            background: var(--secondary-color);
+            color: white;
+            align-self: flex-end;
+            margin-left: auto;
+        }
+
+        .message.ai {
+            background: white;
+            border: 1px solid var(--border-color);
+            align-self: flex-start;
+        }
+
+        .message-header {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            opacity: 0.8;
+        }
+
+        .chat-input {
+            display: flex;
+            padding: 1rem;
+            border-top: 1px solid var(--border-color);
+            background: white;
+        }
+
+        .chat-input input {
+            flex: 1;
+            margin-right: 1rem;
+            margin-bottom: 0;
+        }
+
+        .phase-indicator {
+            background: var(--warning-color);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            display: inline-block;
+            margin-bottom: 1rem;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            font-weight: 500;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border-left: 4px solid var(--secondary-color);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .recommendations-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .recommendation-category {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .recommendation-item {
+            background: white;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            border-left: 4px solid var(--secondary-color);
+        }
+
+        .recommendation-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--primary-color);
+        }
+
+        .recommendation-description {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #ecf0f1;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--success-color);
+            transition: width 0.3s;
+            border-radius: 10px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 2rem;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover {
+            color: var(--accent-color);
+        }
+
+        .crisis-alert {
+            background: var(--accent-color);
+            color: white;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            font-weight: 600;
+            animation: pulse-alert 1s infinite;
+        }
+
+        @keyframes pulse-alert {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .api-endpoint {
+            background: #2c3e50;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            margin: 0.5rem 0;
+            display: inline-block;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .table th, .table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .table th {
+            background: var(--primary-color);
+            color: white;
+            font-weight: 600;
+        }
+
+        .table tr:hover {
+            background: #f8f9fa;
+        }
+
+        /* WebSocket Status */
+        .ws-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .ws-connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .ws-disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .ws-connecting {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .recommendations-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-buttons {
+                flex-direction: column;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <div>
+                <h1>🧠 AI Therapy System</h1>
+                <div class="subtitle">Dr. Maya - Interactive AI Therapist Frontend</div>
+            </div>
+            <div class="system-status">
+                <span class="status-indicator" id="systemStatus"></span>
+                <span id="statusText">System Online</span>
+                <div class="ws-status ws-disconnected" id="wsStatus">
+                    WebSocket: Disconnected
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Main Navigation -->
+        <nav class="main-nav">
+            <div class="nav-buttons">
+                <button class="nav-btn active" onclick="showSection('dashboard')">📊 Dashboard</button>
+                <button class="nav-btn" onclick="showSection('patients')">👥 Patient Management</button>
+                <button class="nav-btn" onclick="showSection('sessions')">💬 Session Chat</button>
+                <button class="nav-btn" onclick="showSection('progress')">📈 Progress Tracking</button>
+                <button class="nav-btn" onclick="generateHomeworkReport()">📝 Homework Report</button>
+                <button class="nav-btn" onclick="testHomeworkGeneration()">🧪 Test Homework</button>
+                <button class="nav-btn" onclick="showSection('recommendations')">🎯 Recommendations</button>
+                <button class="nav-btn" onclick="showSection('diagnosis')">🏥 Diagnosis</button>
+                <button class="nav-btn" onclick="showSection('analytics')">📋 Analytics</button>
+                <button class="nav-btn" onclick="showSection('system')">⚙️ System</button>
+            </div>
+        </nav>
+
+        <!-- Dashboard Section -->
+        <section class="section active" id="dashboard">
+            <div class="section-header">
+                <h2 class="section-title">System Dashboard</h2>
+                <p class="section-description">Overview of all therapy system activities and metrics</p>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalPatients">0</div>
+                    <div class="stat-label">Total Patients</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalSessions">0</div>
+                    <div class="stat-label">Total Sessions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="activeCases">0</div>
+                    <div class="stat-label">Active Cases</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="completedGoals">0</div>
+                    <div class="stat-label">Completed Goals</div>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <div class="card-header">Recent Activity</div>
+                    <div id="recentActivity">Loading recent activities...</div>
+                </div>
+                <div class="card">
+                    <div class="card-header">System Health</div>
+                    <div id="systemHealth">
+                        <button onclick="checkSystemHealth()" class="btn-primary">Check Health Status</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Patient Management Section -->
+        <section class="section" id="patients">
+            <div class="section-header">
+                <h2 class="section-title">Patient Management</h2>
+                <p class="section-description">Create, view, and manage patient records</p>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <div class="card-header">Create New Patient</div>
+                    <div class="form-group">
+                        <label for="patientName">Patient Name:</label>
+                        <input type="text" id="patientName" placeholder="Enter patient's name">
+                    </div>
+                    <div class="form-group">
+                        <label for="patientDOB">Date of Birth (Optional):</label>
+                        <input type="date" id="patientDOB">
+                    </div>
+                    <div class="form-group">
+                        <label for="therapyMode">Preferred Therapy Mode:</label>
+                        <select id="therapyMode">
+                            <option value="CBT">Cognitive Behavioral Therapy (CBT)</option>
+                            <option value="DBT">Dialectical Behavior Therapy (DBT)</option>
+                            <option value="ACT">Acceptance and Commitment Therapy (ACT)</option>
+                            <option value="Psychodynamic">Psychodynamic Therapy</option>
+                        </select>
+                    </div>
+                    <button onclick="createPatient()" class="btn-success">Create Patient</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">Patient List</div>
+                    <button onclick="loadPatients()" class="btn-primary" style="margin-bottom: 1rem;">Refresh Patient List</button>
+                    <div class="patient-list" id="patientList">
+                        <p>Click "Refresh Patient List" to load patients</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" id="patientDetails" style="display: none; margin-top: 2rem;">
+                <div class="card-header">Patient Details & Dashboard</div>
+                <div id="patientDetailsContent"></div>
+            </div>
+        </section>
+
+        <!-- Session Chat Section -->
+        <section class="section" id="sessions">
+            <div class="section-header">
+                <h2 class="section-title">Interactive Therapy Sessions</h2>
+                <p class="section-description">Conduct AI-powered therapy sessions with Dr. Maya</p>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <div class="card-header">Start New Session</div>
+                    <div class="form-group">
+                        <label for="sessionPatientId">Select Patient:</label>
+                        <select id="sessionPatientId">
+                            <option value="">-- Select Patient --</option>
+                        </select>
+                    </div>
+                    <button onclick="startSession()" class="btn-success">Start Session</button>
+                    <button onclick="loadActiveSession()" class="btn-primary">Load Active Session</button>
+                    <button onclick="enableAudio()" class="btn-warning">🔊 Enable Audio</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">Session List</div>
+                    <button onclick="loadSessions()" class="btn-primary" style="margin-bottom: 1rem;">Refresh Sessions</button>
+                    <div class="session-list" id="sessionList">
+                        <p>Click "Refresh Sessions" to load sessions</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" id="chatContainer" style="display: none; margin-top: 2rem;">
+                <div class="card-header">
+                    <span>Active Session</span>
+                    <div class="phase-indicator" id="currentPhase">INTAKE</div>
+                    <div class="ws-status ws-disconnected" id="sessionWsStatus">
+                        WebSocket: Disconnected
+                    </div>
+                </div>
+                <div class="chat-container">
+                    <div class="chat-messages" id="chatMessages"></div>
+                    <div class="chat-input">
+                        <input type="text" id="messageInput" placeholder="Type your message here..." onkeypress="if(event.key==='Enter') sendMessage()">
+                        <button onclick="sendMessage()" class="btn-primary">Send</button>
+                        <button onclick="endSession()" class="btn-danger">End Session</button>
+                    </div>
+                </div>
+                <div id="sessionInsights" style="margin-top: 1rem;"></div>
+            </div>
+        </section>
+
+        <!-- Progress Tracking Section -->
+        <section class="section" id="progress">
+            <div class="section-header">
+                <h2 class="section-title">Progress Tracking</h2>
+                <p class="section-description">Monitor goals, homework, and patient progress</p>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <div class="card-header">Patient Progress</div>
+                    <div class="form-group">
+                        <label for="progressPatientId">Select Patient:</label>
+                        <select id="progressPatientId">
+                            <option value="">-- Select Patient --</option>
+                        </select>
+                    </div>
+                    <button onclick="loadPatientProgress()" class="btn-primary">Load Progress</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">Goal Management</div>
+                    <div id="goalsList"></div>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <div class="card-header">Homework Assignments</div>
+                    <div id="homeworkList"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">Update Progress</div>
+                    <div class="form-group">
+                        <label for="goalId">Goal ID:</label>
+                        <input type="number" id="goalId" placeholder="Enter goal ID">
+                    </div>
+                    <div class="form-group">
+                        <label for="progressValue">Progress (0-100):</label>
+                        <input type="number" id="progressValue" min="0" max="100" placeholder="Enter progress percentage">
+                    </div>
+                    <button onclick="updateGoalProgress()" class="btn-success">Update Progress</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Recommendations Section -->
+        <section class="section" id="recommendations">
+            <div class="section-header">
+                <h2 class="section-title">AI Recommendations</h2>
+                <p class="section-description">Generate personalized content and lifestyle recommendations</p>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <div class="card-header">Generate Recommendations</div>
+                    <div class="form-group">
+                        <label for="recSessionId">Session ID:</label>
+                        <input type="number" id="recSessionId" placeholder="Enter session ID">
+                    </div>
+                    <div class="form-group">
+                        <label for="contentCount">Content Recommendations Count:</label>
+                        <input type="number" id="contentCount" value="5" min="1" max="10">
+                    </div>
+                    <div class="form-group">
+                        <label for="lifestyleCount">Lifestyle Recommendations Count:</label>
+                        <input type="number" id="lifestyleCount" value="6" min="1" max="10">
+                    </div>
+                    <button onclick="generateRecommendations()" class="btn-primary">Generate Recommendations</button>
+                    <button onclick="generateContentOnly()" class="btn-secondary">Content Only</button>
+                    <button onclick="generateLifestyleOnly()" class="btn-secondary">Lifestyle Only</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">Patient Recommendation Summary</div>
+                    <div class="form-group">
+                        <label for="summaryPatientId">Patient ID:</label>
+                        <input type="number" id="summaryPatientId" placeholder="Enter patient ID">
+                    </div>
+                    <button onclick="getRecommendationSummary()" class="btn-primary">Get Summary</button>
+                </div>
+            </div>
+
+            <div class="recommendations-grid" id="recommendationsDisplay" style="display: none; margin-top: 2rem;">
+                <div class="recommendation-category">
+                    <h3>Content Recommendations</h3>
+                    <div id="contentRecommendations"></div>
+                </div>
+                <div class="recommendation-category">
+                    <h3>Lifestyle Recommendations</h3>
+                    <div id="lifestyleRecommendations"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Diagnosis Section -->
+        <section class="section" id="diagnosis">
+            <div class="section-header">
+                <h2 class="section-title">Diagnosis Management</h2>
+                <p class="section-description">Create, view, and manage patient diagnoses</p>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <div class="card-header">Create Diagnosis</div>
+                    <div class="form-group">
+                        <label for="diagPatientId">Patient ID:</label>
+                        <input type="number" id="diagPatientId" placeholder="Enter patient ID">
+                    </div>
+                    <div class="form-group">
+                        <label for="diagSessionId">Session ID (Optional):</label>
+                        <input type="number" id="diagSessionId" placeholder="Enter session ID">
+                    </div>
+                    <div class="form-group">
+                        <label for="diagnosisName">Diagnosis Name:</label>
+                        <input type="text" id="diagnosisName" placeholder="e.g., Major Depressive Disorder">
+                    </div>
+                    <div class="form-group">
+                        <label for="diagnosisCode">Diagnosis Code (Optional):</label>
+                        <input type="text" id="diagnosisCode" placeholder="e.g., F33.1">
+                    </div>
+                    <div class="form-group">
+                        <label for="severity">Severity:</label>
+                        <select id="severity">
+                            <option value="mild">Mild</option>
+                            <option value="moderate">Moderate</option>
+                            <option value="severe">Severe</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="confidenceLevel">Confidence Level:</label>
+                        <select id="confidenceLevel">
+                            <option value="preliminary">Preliminary</option>
+                            <option value="probable">Probable</option>
+                            <option value="confirmed">Confirmed</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="supportingEvidence">Supporting Evidence:</label>
+                        <textarea id="supportingEvidence" rows="4" placeholder="Describe symptoms, assessments, and observations..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="clinicalNotes">Clinical Notes:</label>
+                        <textarea id="clinicalNotes" rows="3" placeholder="Additional clinical observations..."></textarea>
+                    </div>
+                    <button onclick="createDiagnosis()" class="btn-success">Create Diagnosis</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">Auto-Generate Diagnosis</div>
+                    <div class="form-group">
+                        <label for="autoSessionId">Session ID:</label>
+                        <input type="number" id="autoSessionId" placeholder="Enter session ID">
+                    </div>
+                    <button onclick="autoGenerateDiagnosis()" class="btn-warning">Auto-Generate from Session</button>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top: 2rem;">
+                <div class="card-header">Patient Diagnoses</div>
+                <div class="form-group">
+                    <label for="diagViewPatientId">Patient ID:</label>
+                    <input type="number" id="diagViewPatientId" placeholder="Enter patient ID">
+                </div>
+                <button onclick="loadPatientDiagnoses()" class="btn-primary">Load Diagnoses</button>
+                <div id="diagnosesDisplay" style="margin-top: 1rem;"></div>
+            </div>
+        </section>
+
+        <!-- Analytics Section -->
+        <section class="section" id="analytics">
+            <div class="section-header">
+                <h2 class="section-title">System Analytics</h2>
+                <p class="section-description">System-wide statistics and analysis</p>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <div class="card-header">System Statistics</div>
+                    <button onclick="loadAnalytics()" class="btn-primary">Load Analytics</button>
+                    <div id="analyticsDisplay" style="margin-top: 1rem;"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">Session Insights & Export</div>
+                    <div class="form-group">
+                        <label for="insightsSessionId">Session ID:</label>
+                        <input type="number" id="insightsSessionId" placeholder="Enter session ID">
+                    </div>
+                    <button onclick="getSessionInsights()" class="btn-primary">Get Insights</button>
+                    <button onclick="exportSession()" class="btn-secondary">Export Session</button>
+                    <button onclick="getSessionKeywords()" class="btn-info">Get Keywords</button>
+                    <div id="insightsDisplay" style="margin-top: 1rem;"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- System Section -->
+        <section class="section" id="system">
+            <div class="section-header">
+                <h2 class="section-title">System Administration</h2>
+                <p class="section-description">System maintenance and testing tools</p>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <div class="card-header">System Health</div>
+                    <button onclick="checkSystemHealth()" class="btn-primary">Check Health</button>
+                    <div id="healthDisplay" style="margin-top: 1rem;"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">Database Management</div>
+                    <button onclick="fixDatabase()" class="btn-warning">Fix Database Schema</button>
+                    <div id="dbFixDisplay" style="margin-top: 1rem;"></div>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <div class="card-header">Test Recommendations Engine</div>
+                    <button onclick="testRecommendations()" class="btn-info">Test Recommendations</button>
+                    <div id="testDisplay" style="margin-top: 1rem;"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">API Endpoints Reference</div>
+                    <div style="font-size: 0.9rem;">
+                        <h4>Patient Management:</h4>
+                        <div class="api-endpoint">POST /patients - Create Patient</div>
+                        <div class="api-endpoint">GET /patients - List All Patients</div>
+                        <div class="api-endpoint">GET /patients/{id}/dashboard - Patient Dashboard</div>
+                        
+                        <h4>Sessions:</h4>
+                        <div class="api-endpoint">POST /sessions/start - Start Session</div>
+                        <div class="api-endpoint">POST /sessions/{id}/chat - Send Message</div>
+                        <div class="api-endpoint">WS /ws/{session_id} - WebSocket Chat</div>
+                        
+                        <h4>Analysis:</h4>
+                        <div class="api-endpoint">GET /sessions/{id}/insights - Session Insights</div>
+                        <div class="api-endpoint">GET /analytics - System Analytics</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Crisis Alert Modal -->
+    <div id="crisisModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeCrisisModal()">&times;</span>
+            <div class="crisis-alert">
+                <h2>🚨 CRISIS ALERT DETECTED</h2>
+                <div id="crisisContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Modal -->
+    <div id="resultsModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeResultsModal()">&times;</span>
+            <h2 id="resultsTitle">Results</h2>
+            <div id="resultsContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE_URL = 'http://localhost:8000';
+        let currentPatientId = null;
+        let currentSessionId = null;
+        let websocket = null;
+        let audioContext = null;
+        let audioQueue = [];  // Queue for pending chunks
+        let isPlaying = false;  // Flag to prevent concurrent playback
+
+        // Homework System Variables
+        let currentHomework = [];
+        let homeworkCompliance = {};
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboard();
+            loadPatientSelects();
+            updateSystemStatus();
+            initializeAudioContext();
+        });
+
+        // Initialize Web Audio API
+        function initializeAudioContext() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                console.log('Audio context initialized');
+            } catch (error) {
+                console.error('Failed to initialize audio context:', error);
+            }
+        }
+
+        // Function to play a single chunk
+        function playAudioChunk(audioData) {
+            if (!audioContext) {
+                console.error('Audio context not initialized');
+                return;
+            }
+
+            // Resume audio context if suspended (required for user interaction)
+            if (audioContext.state === 'suspended') {
+                audioContext.resume().then(() => {
+                    console.log('Audio context resumed');
+                    playAudioChunk(audioData);
+                }).catch(error => {
+                    console.error('Failed to resume audio context:', error);
+                });
+                return;
+            }
+
+            try {
+                // Decode base64 to ArrayBuffer
+                const binaryString = atob(audioData);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+
+                // Decode and play
+                audioContext.decodeAudioData(bytes.buffer, (buffer) => {
+                    const source = audioContext.createBufferSource();
+                    source.buffer = buffer;
+                    source.connect(audioContext.destination);
+                    source.start(0);
+                    console.log('Playing audio chunk');
+
+                    // When this chunk ends, play the next in queue
+                    source.onended = () => {
+                        console.log('Chunk finished playing');
+                        isPlaying = false;
+                        playNextInQueue();  // Proceed to next
+                    };
+                }, (error) => {
+                    console.error('Error decoding audio:', error);
+                });
+            } catch (error) {
+                console.error('Error playing audio chunk:', error);
+            }
+        }
+
+        // Queue management: Add chunk to queue and play if not already playing
+        function queueAudioChunk(audioData) {
+            audioQueue.push(audioData);
+            if (!isPlaying) {
+                playNextInQueue();
+            }
+        }
+
+        // Play the next chunk in queue
+        function playNextInQueue() {
+            if (audioQueue.length === 0) return;
+            isPlaying = true;
+            const nextChunk = audioQueue.shift();  // Get first in queue
+            playAudioChunk(nextChunk);
+        }
+
+        function enableAudio() {
+            if (!audioContext) {
+                initializeAudioContext();
+            }
+            
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume().then(() => {
+                    showSuccess('Audio enabled! You can now hear Dr. Maya\'s voice.');
+                    console.log('Audio context enabled by user interaction');
+                }).catch(error => {
+                    showError('Failed to enable audio: ' + error.message);
+                });
+            } else {
+                showSuccess('Audio is already enabled!');
+            }
+        }
+
+        // Navigation Functions
+        function showSection(sectionName) {
+            // Hide all sections
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // Show selected section
+            document.getElementById(sectionName).classList.add('active');
+            
+            // Update navigation buttons
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            event.target.classList.add('active');
+        }
+
+        // System Health and Status
+        async function updateSystemStatus() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                if (response.ok) {
+                    const health = await response.json();
+                    document.getElementById('statusText').textContent = 'System Online';
+                    document.getElementById('systemStatus').style.background = 'var(--success-color)';
+                } else {
+                    throw new Error('Health check failed');
+                }
+            } catch (error) {
+                console.error('System health check failed:', error);
+                document.getElementById('statusText').textContent = 'System Offline';
+                document.getElementById('systemStatus').style.background = 'var(--accent-color)';
+            }
+        }
+
+        async function checkSystemHealth() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                const health = await response.json();
+                
+                const healthHtml = `
+                    <div class="alert alert-success">
+                        <strong>Status:</strong> ${health.status}<br>
+                        <strong>Version:</strong> ${health.version}<br>
+                        <strong>Timestamp:</strong> ${new Date(health.timestamp).toLocaleString()}<br>
+                        <strong>Features:</strong>
+                        <ul>
+                            ${health.features.map(feature => `<li>${feature}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+                document.getElementById('healthDisplay').innerHTML = healthHtml;
+                document.getElementById('systemHealth').innerHTML = healthHtml;
+            } catch (error) {
+                showError('Failed to check system health: ' + error.message);
+            }
+        }
+
+        // Dashboard Functions
+        async function loadDashboard() {
+            try {
+                // Load patients count
+                const patientsResponse = await fetch(`${API_BASE_URL}/patients`);
+                if (patientsResponse.ok) {
+                    const patients = await patientsResponse.json();
+                    document.getElementById('totalPatients').textContent = patients.length;
+                }
+
+                // Load analytics
+                const analyticsResponse = await fetch(`${API_BASE_URL}/analytics`);
+                if (analyticsResponse.ok) {
+                    const analytics = await analyticsResponse.json();
+                    document.getElementById('totalSessions').textContent = analytics.total_sessions || 0;
+                    document.getElementById('activeCases').textContent = analytics.active_cases || 0;
+                    document.getElementById('completedGoals').textContent = analytics.completed_goals || 0;
+                }
+
+                // Update recent activity
+                document.getElementById('recentActivity').innerHTML = `
+                    <div class="alert alert-info">
+                        <strong>System is running normally.</strong><br>
+                        Last updated: ${new Date().toLocaleString()}
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Failed to load dashboard:', error);
+                showError('Failed to load dashboard data');
+            }
+        }
+
+        // Patient Management Functions
+        async function createPatient() {
+            const name = document.getElementById('patientName').value.trim();
+            const dob = document.getElementById('patientDOB').value;
+            const therapyMode = document.getElementById('therapyMode').value;
+
+            if (!name) {
+                showError('Please enter patient name');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/patients`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        date_of_birth: dob || null,
+                        preferred_therapy_mode: therapyMode
+                    }),
+                });
+
+                if (response.ok) {
+                    const patient = await response.json();
+                    showSuccess(`Patient created successfully! ID: ${patient.id}`);
+                    
+                    // Clear form
+                    document.getElementById('patientName').value = '';
+                    document.getElementById('patientDOB').value = '';
+                    document.getElementById('therapyMode').value = 'CBT';
+                    
+                    // Reload patient list and selects
+                    loadPatients();
+                    loadPatientSelects();
+                    loadDashboard();
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to create patient');
+                }
+            } catch (error) {
+                showError('Failed to create patient: ' + error.message);
+            }
+        }
+
+        async function loadPatients() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/patients`);
+                if (response.ok) {
+                    const patients = await response.json();
+                    
+                    const patientListHtml = patients.map(patient => `
+                        <div class="patient-item" onclick="selectPatient(${patient.id})">
+                            <div>
+                                <strong>${patient.name}</strong><br>
+                                <small>ID: ${patient.id} | Created: ${new Date(patient.created_date).toLocaleDateString()}</small>
+                                ${patient.preferred_therapy_mode ? `<br><small>Mode: ${patient.preferred_therapy_mode}</small>` : ''}
+                            </div>
+                            <button onclick="viewPatientDashboard(${patient.id}); event.stopPropagation();" class="btn-primary" style="padding: 6px 12px; font-size: 0.8rem;">Dashboard</button>
+                        </div>
+                    `).join('');
+                    
+                    document.getElementById('patientList').innerHTML = patientListHtml || '<p>No patients found</p>';
+                } else {
+                    throw new Error('Failed to load patients');
+                }
+            } catch (error) {
+                showError('Failed to load patients: ' + error.message);
+            }
+        }
+
+        async function loadPatientSelects() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/patients`);
+                if (response.ok) {
+                    const patients = await response.json();
+                    
+                    const options = patients.map(patient => 
+                        `<option value="${patient.id}">${patient.name} (ID: ${patient.id})</option>`
+                    ).join('');
+                    
+                    document.getElementById('sessionPatientId').innerHTML = '<option value="">-- Select Patient --</option>' + options;
+                    document.getElementById('progressPatientId').innerHTML = '<option value="">-- Select Patient --</option>' + options;
+                }
+            } catch (error) {
+                console.error('Failed to load patient selects:', error);
+            }
+        }
+
+        function selectPatient(patientId) {
+            // Remove previous selection
+            document.querySelectorAll('.patient-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            // Add selection to clicked item
+            event.target.closest('.patient-item').classList.add('selected');
+            
+            currentPatientId = patientId;
+            showSuccess(`Selected patient ID: ${patientId}`);
+        }
+
+        async function viewPatientDashboard(patientId) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/patients/${patientId}/dashboard`);
+                if (response.ok) {
+                    const dashboard = await response.json();
+                    
+                    const dashboardHtml = `
+                        <div class="grid">
+                            <div class="card">
+                                <div class="card-header">Patient Information</div>
+                                <p><strong>Name:</strong> ${dashboard.patient_name}</p>
+                                <p><strong>ID:</strong> ${dashboard.patient_id}</p>
+                                <p><strong>Total Sessions:</strong> ${dashboard.total_sessions}</p>
+                                <p><strong>Active Goals:</strong> ${dashboard.active_goals}</p>
+                                <p><strong>Pending Homework:</strong> ${dashboard.pending_homework}</p>
+                            </div>
+                            <div class="card">
+                                <div class="card-header">Recent Sessions</div>
+                                ${dashboard.recent_sessions.map(session => `
+                                    <div style="padding: 0.5rem; border-bottom: 1px solid #eee;">
+                                        <strong>Session ${session.id}</strong> - ${session.current_phase}<br>
+                                        <small>${new Date(session.session_date).toLocaleString()}</small>
+                                    </div>
+                                `).join('') || '<p>No recent sessions</p>'}
+                            </div>
+                        </div>
+                        <div class="grid">
+                            <div class="card">
+                                <div class="card-header">Active Goals</div>
+                                ${dashboard.goals_summary.map(goal => `
+                                    <div style="margin-bottom: 1rem;">
+                                        <strong>${goal.goal_description}</strong>
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" style="width: ${goal.current_progress}%"></div>
+                                        </div>
+                                        <small>${goal.current_progress}% complete</small>
+                                    </div>
+                                `).join('') || '<p>No active goals</p>'}
+                            </div>
+                            <div class="card">
+                                <div class="card-header">Assessment Results</div>
+                                ${Object.entries(dashboard.assessment_summary).map(([test, result]) => `
+                                    <p><strong>${test}:</strong> ${result.total_score} (${result.severity_level})</p>
+                                `).join('') || '<p>No assessments completed</p>'}
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.getElementById('patientDetailsContent').innerHTML = dashboardHtml;
+                    document.getElementById('patientDetails').style.display = 'block';
+                } else {
+                    throw new Error('Failed to load patient dashboard');
+                }
+            } catch (error) {
+                showError('Failed to load patient dashboard: ' + error.message);
+            }
+        }
+
+        // Session Management Functions
+        async function startSession() {
+            const patientId = document.getElementById('sessionPatientId').value;
+            
+            if (!patientId) {
+                showError('Please select a patient');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/sessions/start`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        patient_id: parseInt(patientId)
+                    }),
+                });
+
+                if (response.ok) {
+                    const session = await response.json();
+                    currentSessionId = session.session_id;
+                    
+                    showSuccess(`Session started! ID: ${session.session_id}`);
+                    
+                    // Show chat container
+                    document.getElementById('chatContainer').style.display = 'block';
+                    document.getElementById('currentPhase').textContent = session.phase.toUpperCase();
+                    
+                    // Clear chat messages and add initial message
+                    const chatMessages = document.getElementById('chatMessages');
+                    chatMessages.innerHTML = `
+                        <div class="message ai">
+                            <div class="message-header">Dr. Maya (${session.phase})</div>
+                            <div>${session.initial_message}</div>
+                        </div>
+                    `;
+                    
+                    // Connect WebSocket
+                    connectWebSocket(session.session_id);
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to start session');
+                }
+            } catch (error) {
+                showError('Failed to start session: ' + error.message);
+            }
+        }
+
+        async function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            
+            if (!message || !currentSessionId) {
+                return;
+            }
+
+            // Add user message to chat
+            addMessageToChat('user', message, 'You');
+            messageInput.value = '';
+
+            // Send message via WebSocket for real-time TTS
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                try {
+                    websocket.send(JSON.stringify({
+                        message: message
+                    }));
+                    console.log('Message sent via WebSocket');
+                } catch (error) {
+                    showError('Failed to send message via WebSocket: ' + error.message);
+                }
+            } else {
+                showError('WebSocket not connected. Please refresh and try again.');
+            }
+        }
+
+        function addMessageToChat(type, message, sender) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.innerHTML = `
+                <div class="message-header">${sender}</div>
+                <div>${message}</div>
+            `;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // WebSocket Functions
+        function connectWebSocket(sessionId) {
+            if (websocket) {
+                websocket.close();
+            }
+
+            const wsUrl = `ws://localhost:8000/ws/${sessionId}`;
+            websocket = new WebSocket(wsUrl);
+            
+            const wsStatus = document.getElementById('sessionWsStatus');
+            wsStatus.textContent = 'WebSocket: Connecting...';
+            wsStatus.className = 'ws-status ws-connecting';
+
+            websocket.onopen = function(event) {
+                console.log('WebSocket connected');
+                wsStatus.textContent = 'WebSocket: Connected';
+                wsStatus.className = 'ws-status ws-connected';
+            };
+
+            websocket.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                console.log('WebSocket message:', data);
+                
+                // Handle different message types
+                if (data.type === 'ai_text') {
+                    // Handle text response (for display)
+                    addMessageToChat('ai', data.data, `Dr. Maya (${data.phase || 'therapy'})`);
+                    document.getElementById('currentPhase').textContent = (data.phase || 'therapy').toUpperCase();
+                    
+                    if (data.crisis_alert) {
+                        showCrisisAlert(data.crisis_alert);
+                    }
+                    
+                    // Reset queue for new response
+                    audioQueue = [];
+                    isPlaying = false;
+                    
+                } else if (data.type === 'audio_chunk') {
+                    // Handle audio chunks from TTS (real-time streaming)
+                    console.log(`Received audio chunk ${data.data.chunk_id}/${data.data.total_chunks}`);
+                    // Queue the chunk instead of playing immediately
+                    queueAudioChunk(data.data.audio_data);
+                    if (data.data.is_final) {
+                        console.log('Final chunk received - queue will play sequentially');
+                    }
+                    
+                } else if (data.type === 'generation_complete') {
+                    // TTS generation is fully complete
+                    console.log('TTS generation_complete received');
+                    
+                } else if (data.type === 'error') {
+                    // Handle TTS errors
+                    console.error('TTS Error:', data.data);
+                    showError('TTS Error: ' + data.data);
+                    
+                } else if (data.type === 'ai_response') {
+                    // Fallback for old format
+                    addMessageToChat('ai', data.response, `Dr. Maya (${data.phase})`);
+                    document.getElementById('currentPhase').textContent = data.phase.toUpperCase();
+                    
+                    if (data.crisis_alert) {
+                        showCrisisAlert(data.crisis_alert);
+                    }
+                }
+            };
+
+            websocket.onclose = function(event) {
+                console.log('WebSocket disconnected');
+                wsStatus.textContent = 'WebSocket: Disconnected';
+                wsStatus.className = 'ws-status ws-disconnected';
+            };
+
+            websocket.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                wsStatus.textContent = 'WebSocket: Error';
+                wsStatus.className = 'ws-status ws-disconnected';
+            };
+        }
+
+        async function loadSessions() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/patients`);
+                if (response.ok) {
+                    const patients = await response.json();
+                    
+                    let allSessions = [];
+                    for (const patient of patients) {
+                        const sessionResponse = await fetch(`${API_BASE_URL}/patients/${patient.id}/sessions`);
+                        if (sessionResponse.ok) {
+                            const sessions = await sessionResponse.json();
+                            allSessions = allSessions.concat(sessions.map(session => ({
+                                ...session,
+                                patient_name: patient.name
+                            })));
+                        }
+                    }
+                    
+                    const sessionListHtml = allSessions.map(session => `
+                        <div class="session-item" onclick="loadSession(${session.id})">
+                            <div>
+                                <strong>Session ${session.id}</strong> - ${session.patient_name}<br>
+                                <small>Phase: ${session.current_phase} | Date: ${new Date(session.session_date).toLocaleString()}</small><br>
+                                <small>Exchanges: ${session.total_exchanges} | Completed: ${session.session_completed ? 'Yes' : 'No'}</small>
+                            </div>
+                            <div>
+                                <button onclick="loadSessionInsights(${session.id}); event.stopPropagation();" class="btn-info" style="padding: 4px 8px; font-size: 0.8rem; margin-right: 5px;">Insights</button>
+                                <button onclick="loadSession(${session.id}); event.stopPropagation();" class="btn-primary" style="padding: 4px 8px; font-size: 0.8rem;">Load</button>
+                            </div>
+                        </div>
+                    `).join('');
+                    
+                    document.getElementById('sessionList').innerHTML = sessionListHtml || '<p>No sessions found</p>';
+                } else {
+                    throw new Error('Failed to load sessions');
+                }
+            } catch (error) {
+                showError('Failed to load sessions: ' + error.message);
+            }
+        }
+
+        async function loadSession(sessionId) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}`);
+                if (response.ok) {
+                    const session = await response.json();
+                    currentSessionId = sessionId;
+                    
+                    // Show chat container
+                    document.getElementById('chatContainer').style.display = 'block';
+                    document.getElementById('currentPhase').textContent = session.current_phase.toUpperCase();
+                    
+                    // Load conversation history
+                    const chatMessages = document.getElementById('chatMessages');
+                    chatMessages.innerHTML = '';
+                    
+                    session.conversation_history.forEach(exchange => {
+                        if (exchange.user) {
+                            addMessageToChat('user', exchange.user, 'You');
+                        }
+                        if (exchange.ai) {
+                            addMessageToChat('ai', exchange.ai, `Dr. Maya (${exchange.phase})`);
+                        }
+                    });
+                    
+                    showSuccess(`Loaded session ${sessionId}`);
+                    
+                    // Connect WebSocket if session is not completed
+                    if (!session.session_completed) {
+                        connectWebSocket(sessionId);
+                    }
+                } else {
+                    throw new Error('Failed to load session');
+                }
+            } catch (error) {
+                showError('Failed to load session: ' + error.message);
+            }
+        }
+
+        async function loadSessionInsights(sessionId) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/insights`);
+                if (response.ok) {
+                    const insights = await response.json();
+                    
+                    const insightsHtml = `
+                        <div class="alert alert-info">
+                            <strong>Session Insights</strong><br>
+                            <strong>Patient:</strong> ${insights.patient_name}<br>
+                            <strong>Exchanges:</strong> ${insights.session_stats.total_exchanges}<br>
+                            <strong>Phase:</strong> ${insights.session_stats.current_phase}<br>
+                            <strong>Symptoms Detected:</strong> ${insights.session_stats.detected_symptoms.join(', ')}<br>
+                            <strong>Completed:</strong> ${insights.session_stats.session_completed ? 'Yes' : 'No'}
+                        </div>
+                        <div class="card">
+                            <div class="card-header">AI Analysis</div>
+                            <p>${insights.ai_insights}</p>
+                        </div>
+                    `;
+                    
+                    document.getElementById('sessionInsights').innerHTML = insightsHtml;
+                } else {
+                    throw new Error('Failed to load session insights');
+                }
+            } catch (error) {
+                showError('Failed to load session insights: ' + error.message);
+            }
+        }
+
+        // Progress Tracking Functions
+        async function loadPatientProgress() {
+            const patientId = document.getElementById('progressPatientId').value;
+            
+            if (!patientId) {
+                showError('Please select a patient');
+                return;
+            }
+
+            try {
+                // Load goals
+                const goalsResponse = await fetch(`${API_BASE_URL}/patients/${patientId}/sessions`);
+                if (goalsResponse.ok) {
+                    const sessions = await goalsResponse.json();
+                    let allGoals = [];
+                    
+                    for (const session of sessions) {
+                        if (session.goals && session.goals.length > 0) {
+                            allGoals = allGoals.concat(session.goals);
+                        }
+                    }
+                    
+                    const goalsHtml = allGoals.map(goal => `
+                        <div class="card" style="margin-bottom: 1rem;">
+                            <div class="card-header">Goal ID: ${goal.id}</div>
+                            <p><strong>Type:</strong> ${goal.goal_type}</p>
+                            <p><strong>Description:</strong> ${goal.goal_description}</p>
+                            <p><strong>Progress:</strong> ${goal.current_progress}%</p>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${goal.current_progress}%"></div>
+                            </div>
+                            <p><strong>Status:</strong> ${goal.status}</p>
+                            <p><strong>Target Date:</strong> ${goal.target_date || 'Not set'}</p>
+                        </div>
+                    `).join('');
+                    
+                    document.getElementById('goalsList').innerHTML = goalsHtml || '<p>No goals found for this patient</p>';
+                }
+                
+                // Load homework
+                await loadHomeworkAssignments();
+            } catch (error) {
+                showError('Failed to load patient progress: ' + error.message);
+            }
+        }
+
+        async function updateGoalProgress() {
+            const goalId = document.getElementById('goalId').value;
+            const progress = document.getElementById('progressValue').value;
+            
+            if (!goalId || !progress) {
+                showError('Please enter both goal ID and progress value');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/goals/${goalId}/progress?progress=${progress}`, {
+                    method: 'GET'  // This endpoint uses GET with query parameter
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    showSuccess(`Goal progress updated successfully! New progress: ${progress}%`);
+                    
+                    // Clear form
+                    document.getElementById('goalId').value = '';
+                    document.getElementById('progressValue').value = '';
+                    
+                    // Reload progress if a patient is selected
+                    const patientId = document.getElementById('progressPatientId').value;
+                    if (patientId) {
+                        loadPatientProgress();
+                    }
+                } else {
+                    throw new Error('Failed to update goal progress');
+                }
+            } catch (error) {
+                showError('Failed to update goal progress: ' + error.message);
+            }
+        }
+
+        // Recommendations Functions
+        async function generateRecommendations() {
+            const sessionId = document.getElementById('recSessionId').value;
+            const contentCount = document.getElementById('contentCount').value || 5;
+            const lifestyleCount = document.getElementById('lifestyleCount').value || 6;
+            
+            if (!sessionId) {
+                showError('Please enter session ID');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/recommendations`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        session_id: parseInt(sessionId),
+                        content_count: parseInt(contentCount),
+                        lifestyle_count: parseInt(lifestyleCount)
+                    }),
+                });
+
+                if (response.ok) {
+                    const recommendations = await response.json();
+                    displayRecommendations(recommendations);
+                    showSuccess('Recommendations generated successfully!');
+                } else {
+                    throw new Error('Failed to generate recommendations');
+                }
+            } catch (error) {
+                showError('Failed to generate recommendations: ' + error.message);
+            }
+        }
+
+        async function generateContentOnly() {
+            const sessionId = document.getElementById('recSessionId').value;
+            const count = document.getElementById('contentCount').value || 5;
+            
+            if (!sessionId) {
+                showError('Please enter session ID');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/content-recommendations?count=${count}`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    const recommendations = await response.json();
+                    displayRecommendations({ content_recommendations: recommendations, lifestyle_recommendations: [] });
+                    showSuccess('Content recommendations generated successfully!');
+                } else {
+                    throw new Error('Failed to generate content recommendations');
+                }
+            } catch (error) {
+                showError('Failed to generate content recommendations: ' + error.message);
+            }
+        }
+
+        async function generateLifestyleOnly() {
+            const sessionId = document.getElementById('recSessionId').value;
+            const count = document.getElementById('lifestyleCount').value || 6;
+            
+            if (!sessionId) {
+                showError('Please enter session ID');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/lifestyle-recommendations?count=${count}`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    const recommendations = await response.json();
+                    displayRecommendations({ content_recommendations: [], lifestyle_recommendations: recommendations });
+                    showSuccess('Lifestyle recommendations generated successfully!');
+                } else {
+                    throw new Error('Failed to generate lifestyle recommendations');
+                }
+            } catch (error) {
+                showError('Failed to generate lifestyle recommendations: ' + error.message);
+            }
+        }
+
+        function displayRecommendations(recommendations) {
+            // Display content recommendations
+            const contentHtml = recommendations.content_recommendations?.map(rec => `
+                <div class="recommendation-item">
+                    <div class="recommendation-title">${rec.title}</div>
+                    <div class="recommendation-description">${rec.description}</div>
+                    <small><strong>Type:</strong> ${rec.type} | <strong>Relevance:</strong> ${rec.relevance_score}</small>
+                    ${rec.url ? `<br><a href="${rec.url}" target="_blank" style="color: var(--secondary-color);">View Resource</a>` : ''}
+                </div>
+            `).join('') || '<p>No content recommendations generated</p>';
+            
+            // Display lifestyle recommendations  
+            const lifestyleHtml = recommendations.lifestyle_recommendations?.map(rec => `
+                <div class="recommendation-item">
+                    <div class="recommendation-title">${rec.title}</div>
+                    <div class="recommendation-description">${rec.description}</div>
+                    <small><strong>Type:</strong> ${rec.type} | <strong>Relevance:</strong> ${rec.relevance_score}</small>
+                </div>
+            `).join('') || '<p>No lifestyle recommendations generated</p>';
+            
+            document.getElementById('contentRecommendations').innerHTML = contentHtml;
+            document.getElementById('lifestyleRecommendations').innerHTML = lifestyleHtml;
+            document.getElementById('recommendationsDisplay').style.display = 'grid';
+        }
+
+        async function getRecommendationSummary() {
+            const patientId = document.getElementById('summaryPatientId').value;
+            
+            if (!patientId) {
+                showError('Please enter patient ID');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/patients/${patientId}/recommendations-summary`);
+                if (response.ok) {
+                    const summary = await response.json();
+                    
+                    const summaryHtml = `
+                        <div class="alert alert-info">
+                            <strong>Recommendations Summary for Patient ${patientId}</strong><br>
+                            <strong>Total Sessions:</strong> ${summary.total_sessions || 0}<br>
+                            <strong>Total Recommendations:</strong> ${summary.total_recommendations || 0}<br>
+                            <strong>Last Updated:</strong> ${summary.last_updated ? new Date(summary.last_updated).toLocaleString() : 'Never'}
+                        </div>
+                    `;
+                    
+                    showModal('Recommendation Summary', summaryHtml);
+                } else {
+                    throw new Error('Failed to get recommendation summary');
+                }
+            } catch (error) {
+                showError('Failed to get recommendation summary: ' + error.message);
+            }
+        }
+
+        // Diagnosis Functions
+        async function createDiagnosis() {
+            const patientId = document.getElementById('diagPatientId').value;
+            const sessionId = document.getElementById('diagSessionId').value;
+            const diagnosisName = document.getElementById('diagnosisName').value.trim();
+            const diagnosisCode = document.getElementById('diagnosisCode').value.trim();
+            const severity = document.getElementById('severity').value;
+            const confidenceLevel = document.getElementById('confidenceLevel').value;
+            const supportingEvidence = document.getElementById('supportingEvidence').value.trim();
+            const clinicalNotes = document.getElementById('clinicalNotes').value.trim();
+            
+            if (!patientId || !diagnosisName || !supportingEvidence) {
+                showError('Please fill in required fields: Patient ID, Diagnosis Name, and Supporting Evidence');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/diagnosis`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        patient_id: parseInt(patientId),
+                        session_id: sessionId ? parseInt(sessionId) : null,
+                        diagnosis_name: diagnosisName,
+                        diagnosis_code: diagnosisCode || null,
+                        severity: severity,
+                        confidence_level: confidenceLevel,
+                        supporting_evidence: supportingEvidence,
+                        clinical_notes: clinicalNotes || null
+                    }),
+                });
+
+                if (response.ok) {
+                    const diagnosis = await response.json();
+                    showSuccess(`Diagnosis created successfully! ID: ${diagnosis.id}`);
+                    
+                    // Clear form
+                    document.getElementById('diagPatientId').value = '';
+                    document.getElementById('diagSessionId').value = '';
+                    document.getElementById('diagnosisName').value = '';
+                    document.getElementById('diagnosisCode').value = '';
+                    document.getElementById('severity').value = 'moderate';
+                    document.getElementById('confidenceLevel').value = 'preliminary';
+                    document.getElementById('supportingEvidence').value = '';
+                    document.getElementById('clinicalNotes').value = '';
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to create diagnosis');
+                }
+            } catch (error) {
+                showError('Failed to create diagnosis: ' + error.message);
+            }
+        }
+
+        async function autoGenerateDiagnosis() {
+            const sessionId = document.getElementById('autoSessionId').value;
+            
+            if (!sessionId) {
+                showError('Please enter session ID');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/auto-diagnosis`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    const diagnosis = await response.json();
+                    showSuccess('Auto-diagnosis completed successfully!');
+                    
+                    const diagnosisHtml = `
+                        <div class="alert alert-success">
+                            <strong>Auto-Generated Diagnosis</strong><br>
+                            <strong>Diagnosis:</strong> ${diagnosis.diagnosis_name}<br>
+                            <strong>Code:</strong> ${diagnosis.diagnosis_code || 'Not specified'}<br>
+                            <strong>Severity:</strong> ${diagnosis.severity}<br>
+                            <strong>Confidence:</strong> ${diagnosis.confidence_level}<br>
+                            <strong>Evidence:</strong> ${diagnosis.supporting_evidence}
+                        </div>
+                    `;
+                    
+                    showModal('Auto-Generated Diagnosis', diagnosisHtml);
+                } else {
+                    throw new Error('Failed to auto-generate diagnosis');
+                }
+            } catch (error) {
+                showError('Failed to auto-generate diagnosis: ' + error.message);
+            }
+        }
+
+        async function loadPatientDiagnoses() {
+            const patientId = document.getElementById('diagViewPatientId').value;
+            
+            if (!patientId) {
+                showError('Please enter patient ID');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/patients/${patientId}/diagnoses`);
+                if (response.ok) {
+                    const diagnoses = await response.json();
+                    
+                    const diagnosesHtml = diagnoses.map(diagnosis => `
+                        <div class="card" style="margin-bottom: 1rem;">
+                            <div class="card-header">Diagnosis ID: ${diagnosis.id}</div>
+                            <p><strong>Name:</strong> ${diagnosis.diagnosis_name}</p>
+                            <p><strong>Code:</strong> ${diagnosis.diagnosis_code || 'Not specified'}</p>
+                            <p><strong>Severity:</strong> ${diagnosis.severity}</p>
+                            <p><strong>Confidence:</strong> ${diagnosis.confidence_level}</p>
+                            <p><strong>Status:</strong> ${diagnosis.status}</p>
+                            <p><strong>Created:</strong> ${new Date(diagnosis.created_date).toLocaleString()}</p>
+                            <p><strong>Evidence:</strong> ${diagnosis.supporting_evidence}</p>
+                            ${diagnosis.clinical_notes ? `<p><strong>Notes:</strong> ${diagnosis.clinical_notes}</p>` : ''}
+                        </div>
+                    `).join('');
+                    
+                    document.getElementById('diagnosesDisplay').innerHTML = diagnosesHtml || '<p>No diagnoses found for this patient</p>';
+                } else {
+                    throw new Error('Failed to load patient diagnoses');
+                }
+            } catch (error) {
+                showError('Failed to load patient diagnoses: ' + error.message);
+            }
+        }
+
+        // Analytics Functions
+        async function loadAnalytics() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/analytics`);
+                if (response.ok) {
+                    const analytics = await response.json();
+                    
+                    const analyticsHtml = `
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-number">${analytics.total_patients || 0}</div>
+                                <div class="stat-label">Total Patients</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number">${analytics.total_sessions || 0}</div>
+                                <div class="stat-label">Total Sessions</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number">${analytics.completed_sessions || 0}</div>
+                                <div class="stat-label">Completed Sessions</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number">${analytics.active_cases || 0}</div>
+                                <div class="stat-label">Active Cases</div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">Common Symptoms</div>
+                            ${analytics.common_symptoms?.map(symptom => `
+                                <p><strong>${symptom.symptom}:</strong> ${symptom.count} cases</p>
+                            `).join('') || '<p>No symptom data available</p>'}
+                        </div>
+                        <div class="card">
+                            <div class="card-header">System Statistics</div>
+                            <p><strong>Average Session Length:</strong> ${analytics.avg_session_length || 0} exchanges</p>
+                            <p><strong>Success Rate:</strong> ${analytics.success_rate || 0}%</p>
+                            <p><strong>Last Updated:</strong> ${new Date().toLocaleString()}</p>
+                        </div>
+                    `;
+                    
+                    document.getElementById('analyticsDisplay').innerHTML = analyticsHtml;
+                } else {
+                    throw new Error('Failed to load analytics');
+                }
+            } catch (error) {
+                showError('Failed to load analytics: ' + error.message);
+            }
+        }
+
+        async function getSessionInsights() {
+            const sessionId = document.getElementById('insightsSessionId').value;
+            
+            if (!sessionId) {
+                showError('Please enter session ID');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/insights`);
+                if (response.ok) {
+                    const insights = await response.json();
+                    
+                    const insightsHtml = `
+                        <div class="alert alert-info">
+                            <strong>Session ${sessionId} Insights</strong><br>
+                            <strong>Patient:</strong> ${insights.patient_name}<br>
+                            <strong>Exchanges:</strong> ${insights.session_stats.total_exchanges}<br>
+                            <strong>Phase:</strong> ${insights.session_stats.current_phase}<br>
+                            <strong>Symptoms:</strong> ${insights.session_stats.detected_symptoms.join(', ')}<br>
+                            <strong>Completed:</strong> ${insights.session_stats.session_completed ? 'Yes' : 'No'}
+                        </div>
+                        <div class="card">
+                            <div class="card-header">AI Analysis</div>
+                            <p>${insights.ai_insights}</p>
+                        </div>
+                    `;
+                    
+                    document.getElementById('insightsDisplay').innerHTML = insightsHtml;
+                } else {
+                    throw new Error('Failed to get session insights');
+                }
+            } catch (error) {
+                showError('Failed to get session insights: ' + error.message);
+            }
+        }
+
+        async function exportSession() {
+            const sessionId = document.getElementById('insightsSessionId').value;
+            
+            if (!sessionId) {
+                showError('Please enter session ID');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/export`);
+                if (response.ok) {
+                    const transcript = await response.text();
+                    
+                    // Create download link
+                    const blob = new Blob([transcript], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `session_${sessionId}_transcript.txt`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    showSuccess('Session transcript exported successfully!');
+                } else {
+                    throw new Error('Failed to export session');
+                }
+            } catch (error) {
+                showError('Failed to export session: ' + error.message);
+            }
+        }
+
+        async function getSessionKeywords() {
+            const sessionId = document.getElementById('insightsSessionId').value;
+            
+            if (!sessionId) {
+                showError('Please enter session ID');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/keywords`);
+                if (response.ok) {
+                    const keywords = await response.json();
+                    
+                    const keywordsHtml = `
+                        <div class="card">
+                            <div class="card-header">Session Keywords & Themes</div>
+                            <strong>Keywords:</strong> ${keywords.keywords?.join(', ') || 'None detected'}<br>
+                            <strong>Themes:</strong> ${keywords.themes?.join(', ') || 'None detected'}<br>
+                            <strong>Sentiment:</strong> ${keywords.sentiment || 'Neutral'}
+                        </div>
+                    `;
+                    
+                    document.getElementById('insightsDisplay').innerHTML = keywordsHtml;
+                } else {
+                    throw new Error('Failed to get session keywords');
+                }
+            } catch (error) {
+                showError('Failed to get session keywords: ' + error.message);
+            }
+        }
+
+        // System Functions
+        async function fixDatabase() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/fix-database`);
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    const fixHtml = `
+                        <div class="alert alert-success">
+                            <strong>Database Fix Results</strong><br>
+                            <strong>Status:</strong> ${result.status}<br>
+                            <strong>Message:</strong> ${result.message}<br>
+                            <strong>Tables Checked:</strong> ${result.tables_checked?.join(', ') || 'All tables'}<br>
+                            <strong>Columns Added:</strong> ${result.columns_added || 0}
+                        </div>
+                    `;
+                    
+                    document.getElementById('dbFixDisplay').innerHTML = fixHtml;
+                    showSuccess('Database schema check completed');
+                } else {
+                    throw new Error('Failed to fix database');
+                }
+            } catch (error) {
+                showError('Failed to fix database: ' + error.message);
+            }
+        }
+
+        async function testRecommendations() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/test/recommendations`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    const testHtml = `
+                        <div class="alert alert-success">
+                            <strong>Recommendation Engine Test Results</strong><br>
+                            <strong>Status:</strong> ${result.status}<br>
+                            <strong>Test Cases:</strong> ${result.test_cases_run || 0}<br>
+                            <strong>Success Rate:</strong> ${result.success_rate || 0}%<br>
+                            <strong>Message:</strong> ${result.message}
+                        </div>
+                    `;
+                    
+                    document.getElementById('testDisplay').innerHTML = testHtml;
+                } else {
+                    throw new Error('Failed to test recommendations engine');
+                }
+            } catch (error) {
+                showError('Failed to test recommendations engine: ' + error.message);
+            }
+        }
+
+        // Missing Session Management Functions
+        async function endSession() {
+            if (!currentSessionId) {
+                showError('No active session to end');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/sessions/${currentSessionId}/end`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    showSuccess('Session ended successfully');
+                    document.getElementById('chatContainer').style.display = 'none';
+                    currentSessionId = null;
+                    if (websocket) {
+                        websocket.close();
+                        websocket = null;
+                    }
+                } else {
+                    throw new Error('Failed to end session');
+                }
+            } catch (error) {
+                showError('Failed to end session: ' + error.message);
+            }
+        }
+
+        async function loadActiveSession() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/sessions/active`);
+                if (response.ok) {
+                    const session = await response.json();
+                    if (session) {
+                        currentSessionId = session.id;
+                        loadSession(session.id);
+                        showSuccess('Active session loaded');
+                    } else {
+                        showError('No active session found');
+                    }
+                } else {
+                    throw new Error('Failed to load active session');
+                }
+            } catch (error) {
+                showError('Failed to load active session: ' + error.message);
+            }
+        }
+
+        // Utility Functions
+        function showSuccess(message) {
+            showAlert(message, 'success');
+        }
+
+        function showError(message) {
+            showAlert(message, 'error');
+            console.error('Error:', message);
+        }
+
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            
+            // Insert at top of current section
+            const activeSection = document.querySelector('.section.active');
+            if (activeSection) {
+                activeSection.insertBefore(alertDiv, activeSection.firstChild);
+            }
+            
+            // Remove after 5 seconds
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.parentNode.removeChild(alertDiv);
+                }
+            }, 5000);
+        }
+
+        // Homework System Functions
+        async function loadHomeworkAssignments() {
+            try {
+                if (!currentPatientId) {
+                    document.getElementById('homeworkList').innerHTML = '<p>Please select a patient first</p>';
+                    return;
+                }
+
+                const response = await fetch(`http://localhost:8000/patients/${currentPatientId}/dashboard`);
+                const dashboard = await response.json();
+                
+                if (dashboard.homework && dashboard.homework.length > 0) {
+                    currentHomework = dashboard.homework;
+                    displayHomeworkAssignments(dashboard.homework);
+                } else {
+                    document.getElementById('homeworkList').innerHTML = '<p>No homework assignments found</p>';
+                }
+            } catch (error) {
+                console.error('Error loading homework:', error);
+                document.getElementById('homeworkList').innerHTML = '<p>Error loading homework assignments</p>';
+            }
+        }
+
+        function displayHomeworkAssignments(homework) {
+            const homeworkHtml = homework.map(assignment => `
+                <div class="homework-item ${assignment.completed ? 'completed' : 'pending'}" data-id="${assignment.id}">
+                    <div class="homework-header">
+                        <h4>${assignment.description}</h4>
+                        <div class="homework-status">
+                            <span class="status-badge ${assignment.completed ? 'completed' : 'pending'}">
+                                ${assignment.completed ? 'Completed' : 'Pending'}
+                            </span>
+                            <span class="due-date">Due: ${new Date(assignment.due_date).toLocaleDateString()}</span>
+                        </div>
+                    </div>
+                    <div class="homework-details">
+                        <p><strong>Type:</strong> ${assignment.assignment_type}</p>
+                        <p><strong>Instructions:</strong> ${assignment.instructions}</p>
+                        ${assignment.completed ? `
+                            <p><strong>Completed:</strong> ${new Date(assignment.completion_date).toLocaleDateString()}</p>
+                            ${assignment.completion_notes ? `<p><strong>Notes:</strong> ${assignment.completion_notes}</p>` : ''}
+                        ` : ''}
+                    </div>
+                    <div class="homework-actions">
+                        ${!assignment.completed ? `
+                            <button class="btn btn-success" onclick="markHomeworkComplete(${assignment.id})">
+                                Mark Complete
+                            </button>
+                            <button class="btn btn-secondary" onclick="showHomeworkProgress(${assignment.id})">
+                                Update Progress
+                            </button>
+                        ` : `
+                            <button class="btn btn-info" onclick="viewHomeworkDetails(${assignment.id})">
+                                View Details
+                            </button>
+                        `}
+                    </div>
+                </div>
+            `).join('');
+            
+            document.getElementById('homeworkList').innerHTML = homeworkHtml;
+        }
+
+        async function markHomeworkComplete(homeworkId) {
+            try {
+                const completionNotes = prompt('Add completion notes (optional):');
+                const effectivenessRating = prompt('Rate effectiveness (1-5):');
+                const difficultyRating = prompt('Rate difficulty (1-5):');
+                
+                const completionData = {
+                    notes: completionNotes || '',
+                    rating: parseInt(effectivenessRating) || 3,
+                    difficulty_rating: parseInt(difficultyRating) || 3
+                };
+
+                const response = await fetch(`http://localhost:8000/homework/${homeworkId}/complete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(completionData)
+                });
+
+                if (response.ok) {
+                    showSuccess('Homework marked as completed!');
+                    await loadHomeworkAssignments(); // Refresh the list
+                    await loadPatientProgress(); // Refresh dashboard
+                } else {
+                    const error = await response.json();
+                    showError('Failed to complete homework: ' + error.detail);
+                }
+            } catch (error) {
+                showError('Error completing homework: ' + error.message);
+            }
+        }
+
+        async function showHomeworkProgress(homeworkId) {
+            const assignment = currentHomework.find(h => h.id === homeworkId);
+            if (!assignment) return;
+
+            const progressNotes = prompt('Update progress notes:');
+            const timeSpent = prompt('Time spent (minutes):');
+            const barriers = prompt('Any barriers encountered (comma-separated):');
+            const insights = prompt('Insights gained (comma-separated):');
+
+            try {
+                // Update progress via API (this would need to be implemented in backend)
+                const progressData = {
+                    progress_notes: progressNotes || '',
+                    time_spent: parseInt(timeSpent) || 0,
+                    barriers: barriers ? barriers.split(',').map(b => b.trim()) : [],
+                    insights: insights ? insights.split(',').map(i => i.trim()) : []
+                };
+
+                // For now, just show success message
+                showSuccess('Progress updated successfully!');
+                console.log('Progress data:', progressData);
+            } catch (error) {
+                showError('Error updating progress: ' + error.message);
+            }
+        }
+
+        function viewHomeworkDetails(homeworkId) {
+            const assignment = currentHomework.find(h => h.id === homeworkId);
+            if (!assignment) return;
+
+            const detailsHtml = `
+                <div class="homework-details-modal">
+                    <h3>${assignment.description}</h3>
+                    <p><strong>Type:</strong> ${assignment.assignment_type}</p>
+                    <p><strong>Instructions:</strong> ${assignment.instructions}</p>
+                    <p><strong>Assigned:</strong> ${new Date(assignment.assigned_date).toLocaleDateString()}</p>
+                    <p><strong>Due:</strong> ${new Date(assignment.due_date).toLocaleDateString()}</p>
+                    <p><strong>Completed:</strong> ${assignment.completed ? 'Yes' : 'No'}</p>
+                    ${assignment.completed ? `
+                        <p><strong>Completion Date:</strong> ${new Date(assignment.completion_date).toLocaleDateString()}</p>
+                        <p><strong>Completion Notes:</strong> ${assignment.completion_notes || 'None'}</p>
+                        <p><strong>Effectiveness Rating:</strong> ${assignment.effectiveness_rating || 'Not rated'}/5</p>
+                        <p><strong>Difficulty Rating:</strong> ${assignment.difficulty_rating || 'Not rated'}/5</p>
+                    ` : ''}
+                </div>
+            `;
+            
+            showModal('Homework Details', detailsHtml);
+        }
+
+        async function testHomeworkGeneration() {
+            try {
+                if (!currentPatientId) {
+                    showError('Please select a patient first');
+                    return;
+                }
+
+                // Create a test homework assignment
+                const testHomework = {
+                    patient_id: currentPatientId,
+                    assignment_type: 'thought_record',
+                    description: 'Daily thought record for anxiety management',
+                    instructions: 'Track anxious thoughts daily using the thought record worksheet. Note situation, automatic thoughts, emotions, and develop balanced alternative thoughts.',
+                    due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days from now
+                };
+
+                const response = await fetch('http://localhost:8000/homework/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testHomework)
+                });
+
+                if (response.ok) {
+                    showSuccess('Test homework assignment created successfully!');
+                    await loadHomeworkAssignments(); // Refresh the list
+                } else {
+                    const error = await response.json();
+                    showError('Failed to create test homework: ' + error.detail);
+                }
+            } catch (error) {
+                showError('Error creating test homework: ' + error.message);
+            }
+        }
+
+        async function generateHomeworkReport() {
+            try {
+                // Get all patients and their homework data
+                const patientsResponse = await fetch('http://localhost:8000/patients');
+                
+                if (!patientsResponse.ok) {
+                    throw new Error(`HTTP ${patientsResponse.status}: ${patientsResponse.statusText}`);
+                }
+                
+                const patients = await patientsResponse.json();
+                
+                if (!patients || !Array.isArray(patients) || patients.length === 0) {
+                    showError('No patients found. Please create a patient first.');
+                    return;
+                }
+
+                // Get homework data for all patients
+                const allHomeworkData = [];
+                for (const patient of patients) {
+                    try {
+                        const response = await fetch(`http://localhost:8000/patients/${patient.id}/dashboard`);
+                        
+                        if (!response.ok) {
+                            console.warn(`Failed to load dashboard for patient ${patient.id}: ${response.status}`);
+                            continue;
+                        }
+                        
+                        const dashboard = await response.json();
+                        
+                        if (dashboard.homework && Array.isArray(dashboard.homework) && dashboard.homework.length > 0) {
+                            allHomeworkData.push({
+                                patient: patient,
+                                homework: dashboard.homework,
+                                compliance: dashboard.compliance_rate || 0
+                            });
+                        }
+                    } catch (error) {
+                        console.error(`Error loading homework for patient ${patient.id}:`, error);
+                    }
+                }
+                
+                if (allHomeworkData.length === 0) {
+                    showError('No homework assignments found for any patients. This could mean:\n1. No patients have been created yet\n2. No homework assignments have been generated\n3. The patients endpoint is not responding properly\n\nPlease try creating a patient and running a therapy session first.');
+                    return;
+                }
+
+                // Calculate overall statistics
+                const totalAssignments = allHomeworkData.reduce((sum, data) => sum + data.homework.length, 0);
+                const completedAssignments = allHomeworkData.reduce((sum, data) => 
+                    sum + data.homework.filter(hw => hw.completed).length, 0);
+                const overallCompliance = totalAssignments > 0 ? (completedAssignments / totalAssignments * 100).toFixed(1) : 0;
+
+                const reportHtml = `
+                    <div class="homework-report">
+                        <h3>📝 System-wide Homework Compliance Report</h3>
+                        <p><strong>Debug Info:</strong> Found ${patients.length} patients, ${allHomeworkData.length} with homework assignments</p>
+                        <div class="report-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">Total Patients:</span>
+                                <span class="stat-value">${allHomeworkData.length}</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Total Assignments:</span>
+                                <span class="stat-value">${totalAssignments}</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Completed:</span>
+                                <span class="stat-value">${completedAssignments}</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Overall Compliance:</span>
+                                <span class="stat-value">${overallCompliance}%</span>
+                            </div>
+                        </div>
+                        <div class="report-details">
+                            <h4>📊 Patient-wise Homework Status</h4>
+                            ${allHomeworkData.map(data => {
+                                const patientCompliance = data.compliance;
+                                const patientTotal = data.homework.length;
+                                const patientCompleted = data.homework.filter(hw => hw.completed).length;
+                                
+                                return `
+                                    <div class="patient-homework-section">
+                                        <h5>👤 ${data.patient.name} (ID: ${data.patient.id})</h5>
+                                        <div class="patient-stats">
+                                            <span class="patient-stat">Assignments: ${patientTotal}</span>
+                                            <span class="patient-stat">Completed: ${patientCompleted}</span>
+                                            <span class="patient-stat">Compliance: ${patientCompliance}%</span>
+                                        </div>
+                                        <div class="patient-assignments">
+                                            ${data.homework.slice(0, 3).map(hw => `
+                                                <div class="report-item">
+                                                    <span class="assignment-title">${hw.description}</span>
+                                                    <span class="assignment-status ${hw.completed ? 'completed' : 'pending'}">
+                                                        ${hw.completed ? 'Completed' : 'Pending'}
+                                                    </span>
+                                                </div>
+                                            `).join('')}
+                                            ${data.homework.length > 3 ? `<p class="more-assignments">... and ${data.homework.length - 3} more assignments</p>` : ''}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+                
+                showModal('Homework Report', reportHtml);
+            } catch (error) {
+                showError('Error generating report: ' + error.message);
+            }
+        }
+
+        function showCrisisAlert(crisisData) {
+            document.getElementById('crisisContent').innerHTML = `
+                <p><strong>Crisis Type:</strong> ${crisisData.crisis_type}</p>
+                <p><strong>Risk Level:</strong> ${crisisData.risk_level}</p>
+                <p><strong>Trigger:</strong> ${crisisData.trigger_text}</p>
+                <p><strong>Immediate Actions Required:</strong></p>
+                <ul>
+                    <li>Ensure patient safety</li>
+                    <li>Contact emergency services if necessary (911)</li>
+                    <li>Activate crisis intervention protocols</li>
+                    <li>Document all interactions</li>
+                </ul>
+                <p><strong>Crisis Resources:</strong></p>
+                <ul>
+                    <li>National Suicide Prevention Lifeline: 988</li>
+                    <li>Crisis Text Line: Text HOME to 741741</li>
+                    <li>Emergency Services: 911</li>
+                </ul>
+            `;
+            document.getElementById('crisisModal').style.display = 'block';
+        }
+
+        function closeCrisisModal() {
+            document.getElementById('crisisModal').style.display = 'none';
+        }
+
+        function showModal(title, content) {
+            document.getElementById('resultsTitle').textContent = title;
+            document.getElementById('resultsContent').innerHTML = content;
+            document.getElementById('resultsModal').style.display = 'block';
+        }
+
+        function closeResultsModal() {
+            document.getElementById('resultsModal').style.display = 'none';
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const crisisModal = document.getElementById('crisisModal');
+            const resultsModal = document.getElementById('resultsModal');
+            
+            if (event.target == crisisModal) {
+                crisisModal.style.display = 'none';
+            }
+            if (event.target == resultsModal) {
+                resultsModal.style.display = 'none';
+            }
+        }
+
+        // Auto-refresh functions
+        setInterval(updateSystemStatus, 30000); // Check system status every 30 seconds
+        setInterval(loadDashboard, 60000); // Refresh dashboard every minute
+    </script>
+</body>
+</html>

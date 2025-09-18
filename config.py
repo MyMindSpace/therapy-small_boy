@@ -8,12 +8,24 @@ import os
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 
+# Try to load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # If python-dotenv is not installed, continue without it
+    pass
+except Exception as e:
+    # If there's an error loading .env file, continue without it
+    print(f"Warning: Could not load .env file: {e}")
+    pass
+
 
 class Config:
     """System configuration settings"""
     
     # Gemini API Configuration
-    GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'your-api-key-here')
+    GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
     GEMINI_MODEL = 'gemini-1.5-pro'
     GEMINI_MAX_TOKENS = 8192
     GEMINI_TEMPERATURE = 0.7
@@ -31,6 +43,13 @@ class Config:
     SESSION_PHASES = ['opening', 'homework_review', 'main_work', 'skill_practice', 'homework_assignment', 'closing']
     SESSION_REMINDER_TIME = 5  # minutes before session
     MAX_SESSION_HISTORY = 100
+    
+    # TTS Configuration
+    TTS_ENABLED = True
+    TTS_WS_URL = os.getenv('TTS_WS_URL')
+    TTS_DEFAULT_VOICE = 'Indigo-PlayAI'
+    TTS_MAX_CHUNK_SIZE = 200000  # 200KB per chunk (very conservative limit)
+    TTS_MAX_TOTAL_SIZE = 800000  # 800KB total limit (well under WebSocket limit)
     
     # Clinical Assessment Thresholds
     PHQ9_CUTOFFS = {

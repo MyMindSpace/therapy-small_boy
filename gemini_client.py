@@ -79,7 +79,7 @@ class GeminiTherapyClient:
         # Configure Gemini API
 
         
-        genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+        genai.configure(api_key=Config.GEMINI_API_KEY)
         self.model = genai.GenerativeModel(
             Config.GEMINI_MODEL,
             generation_config=genai.types.GenerationConfig(
