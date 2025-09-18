@@ -678,4 +678,8 @@ CREATE INDEX idx_goal_patient ON treatment_goals(patient_id);
 - Load balancing for multiple instances
 - Separate analytics database for reporting
 
+
+##Demo
+#Thoughts of the model are also displayed in the demo when neccessary (enclosed in '()')
+https://www.loom.com/share/d986203ba1af402a8e6e50cf11d9102b?sid=a59f6c0f-131d-40d7-9478-1ad587e74ab3
 This comprehensive system provides a complete therapeutic experience while maintaining professional standards and clinical safety protocols.
